@@ -609,7 +609,8 @@ export function createRenderer(canvas) {
     );
   }
 
-  function drawStoveRange(state, ui) {
+  function drawStoveRange(world, ui) {
+    const state = world.state;
     const st = LAYOUT.stove;
     const shakeX = state.stoveShake > 0 ? Math.sin(state.stoveShake * 55) * 7 * (state.stoveShake / 0.36) : 0;
 
@@ -840,7 +841,7 @@ export function createRenderer(canvas) {
         item && item.state === COOK_STATE.GOLDEN ? '#ffd447' : PALETTE.brass,
       );
 
-      // Status pill cleanly underneath burner
+      // Status pill: only show imperative ("— CLICK!" / "— CLEAR") when plating/clearing now is safe & valid
       const pillY = cy + ringR + 18;
       let pillText = 'EMPTY';
       let pillBg = 'rgba(255, 255, 255, 0.06)';
@@ -848,13 +849,20 @@ export function createRenderer(canvas) {
       let pillBorder = 'rgba(255, 255, 255, 0.14)';
       if (item) {
         const spec = INGREDIENT_BY_ID[item.id];
+        const plateEmpty =
+          state.plate.length === 0 && !(state.serveHighlight && state.serveHighlight.plateSnapshot);
         if (item.state === COOK_STATE.GOLDEN) {
-          pillText = `GOLDEN ${spec.name.toUpperCase()} — CLICK!`;
-          pillBg = 'rgba(45, 155, 95, 0.3)';
+          const inviteClick = world.isGoldenBurnerActionable(item);
+          pillText = inviteClick
+            ? `GOLDEN ${spec.name.toUpperCase()} — CLICK!`
+            : `GOLDEN ${spec.name.toUpperCase()} · READY`;
+          pillBg = inviteClick ? 'rgba(45, 155, 95, 0.32)' : 'rgba(45, 155, 95, 0.18)';
           pillFg = '#fff1a6';
-          pillBorder = '#ffd447';
+          pillBorder = inviteClick ? '#ffd447' : 'rgba(255, 212, 71, 0.65)';
         } else if (item.state === COOK_STATE.BURNT) {
-          pillText = `BURNT ${spec.name.toUpperCase()} — CLEAR`;
+          pillText = plateEmpty
+            ? `BURNT ${spec.name.toUpperCase()} — CLEAR`
+            : `BURNT ${spec.name.toUpperCase()}`;
           pillBg = 'rgba(201, 67, 56, 0.32)';
           pillFg = '#ffa59d';
           pillBorder = PALETTE.crimsonBright;
@@ -1634,7 +1642,7 @@ export function createRenderer(canvas) {
     drawHud(state, ui);
     drawOrderBoard(state, ui.screen);
     drawHintBar(world.getHint(), isModalOpen);
-    drawStoveRange(state, ui);
+    drawStoveRange(world, ui);
     drawAssemblyPlate(state, readyMatch);
     drawServiceStation(state, ui, readyMatch);
     drawIngredientStations(state, ui);

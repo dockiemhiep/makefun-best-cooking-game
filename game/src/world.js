@@ -445,22 +445,45 @@ export function createWorld(random) {
     return EVT.ERROR;
   }
 
+  /** Best active order that `state.plate` is a valid subset of (fewest missing steps, lowest patience). */
+  function findPartialTargetOrder() {
+    let best = null;
+    for (let i = 0; i < state.orders.length; i += 1) {
+      const ord = state.orders[i];
+      const rec = RECIPE_BY_ID[ord.recipeId];
+      if (!isPlateSubsetOfRecipe(state.plate, rec)) continue;
+      const rem = missingStepsForRecipe(state.plate, rec).length;
+      if (best === null || rem < best.rem || (rem === best.rem && ord.patience < best.ord.patience)) {
+        best = { ord, rec, rem };
+      }
+    }
+    return best;
+  }
+
   /**
-   * Contextual one-line guidance teaching the loop whenever no explicit feedback message is active.
-   * Priority:
-   *   (a) Plate complete and matches an active order -> hint Serve
-   *   (b) Plate partially matches an active order -> hint its missing ingredient(s)
-   *       (only suggesting a golden burner item if it is actually a missing step of that target recipe)
-   *   (c) Empty plate + golden burner item that starts an active order's recipe -> suggest collecting it
-   *   (d) Burning warnings on burners
-   *   (e) Generic next step for the frontmost active order
+   * True only when clicking a golden burner item right now is a valid move:
+   * it is a missing step of the current plate's target recipe, or the plate is visually empty
+   * and an active order needs that cooked ingredient.
    */
+  function isGoldenBurnerActionable(item) {
+    if (!item || item.state !== COOK_STATE.GOLDEN) return false;
+    if (state.serveHighlight && state.serveHighlight.plateSnapshot) return false;
+    if (state.plate.length === 0) {
+      return state.orders.some((ord) =>
+        RECIPE_BY_ID[ord.recipeId].steps.some((s) => s.cooked && s.id === item.id),
+      );
+    }
+    const target = findPartialTargetOrder();
+    if (!target) return false;
+    const missing = missingStepsForRecipe(state.plate, target.rec);
+    return missing.some((s) => s.cooked && s.id === item.id);
+  }
+
   function getHint() {
     if (state.hintOverride) {
       return { text: state.hintOverride.text, tone: state.hintOverride.tone };
     }
 
-    // Spoiled cookable item already on the plate must be trashed before anything can be served
     for (let i = 0; i < state.plate.length; i += 1) {
       const item = state.plate[i];
       const spec = INGREDIENT_BY_ID[item.id];
@@ -488,12 +511,10 @@ export function createWorld(random) {
       };
     }
 
-    // Helper: guide the next missing step of `targetRecipe` given current plate and burners
     function hintMissingStep(targetRecipe) {
       const missing = missingStepsForRecipe(state.plate, targetRecipe);
       if (missing.length === 0) return null;
 
-      // (c-inline) If a golden burner item is actually needed by this target recipe, suggest collecting it now
       for (let i = 0; i < state.burners.length; i += 1) {
         const item = state.burners[i].item;
         if (!item || item.state !== COOK_STATE.GOLDEN) continue;
@@ -507,7 +528,6 @@ export function createWorld(random) {
         }
       }
 
-      // Account for items already cooking (raw) on burners so we do not suggest cooking a duplicate
       const cookingCounts = Object.create(null);
       for (let i = 0; i < state.burners.length; i += 1) {
         const it = state.burners[i].item;
@@ -551,18 +571,9 @@ export function createWorld(random) {
       };
     }
 
-    // (b) Plate partially matches an active order -> hint missing ingredient(s) for that order
+    // (b) Plate partially matches an active order -> hint missing ingredient(s)
     if (state.plate.length > 0) {
-      let best = null;
-      for (let i = 0; i < state.orders.length; i += 1) {
-        const ord = state.orders[i];
-        const rec = RECIPE_BY_ID[ord.recipeId];
-        if (!isPlateSubsetOfRecipe(state.plate, rec)) continue;
-        const rem = missingStepsForRecipe(state.plate, rec).length;
-        if (best === null || rem < best.rem || (rem === best.rem && ord.patience < best.ord.patience)) {
-          best = { ord, rec, rem };
-        }
-      }
+      const best = findPartialTargetOrder();
       if (!best) {
         return {
           text: 'Plate ingredients do not fit an open order — click Trash (T) to clear it.',
@@ -573,26 +584,21 @@ export function createWorld(random) {
       if (stepHint) return stepHint;
     }
 
-    // (c) Empty plate: suggest a golden burner item ONLY if it starts an active order's recipe
+    // (c) Empty plate: suggest golden burner item only if it starts an active order
     if (state.plate.length === 0) {
       for (let i = 0; i < state.burners.length; i += 1) {
         const item = state.burners[i].item;
-        if (!item || item.state !== COOK_STATE.GOLDEN) continue;
-        const neededByActiveOrder = state.orders.some((ord) =>
-          RECIPE_BY_ID[ord.recipeId].steps.some((s) => s.cooked && s.id === item.id),
-        );
-        if (neededByActiveOrder) {
-          const spec = INGREDIENT_BY_ID[item.id];
-          const key = i === 0 ? 'Q' : 'W';
-          return {
-            text: `The ${spec.name.toLowerCase()} is golden — click Burner ${i + 1} (${key}) to plate it!`,
-            tone: 'good',
-          };
-        }
+        if (!isGoldenBurnerActionable(item)) continue;
+        const spec = INGREDIENT_BY_ID[item.id];
+        const key = i === 0 ? 'Q' : 'W';
+        return {
+          text: `The ${spec.name.toLowerCase()} is golden — click Burner ${i + 1} (${key}) to plate it!`,
+          tone: 'good',
+        };
       }
     }
 
-    // (d) Burning warnings on burners
+    // (d) Burning warnings
     for (let i = 0; i < state.burners.length; i += 1) {
       const item = state.burners[i].item;
       if (!item) continue;
@@ -612,7 +618,7 @@ export function createWorld(random) {
       }
     }
 
-    // (e) Generic next step for the frontmost active order
+    // (e) Generic next step
     if (state.orders.length === 0) {
       return { text: 'Fresh order ticket arriving — get ready at the counter!', tone: 'info' };
     }
@@ -766,6 +772,7 @@ export function createWorld(random) {
     servePlate,
     spawnOrder,
     findMatchingOrder,
+    isGoldenBurnerActionable,
     getHint,
     addPopup,
     spawnSparkles,
