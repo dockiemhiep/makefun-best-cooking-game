@@ -153,7 +153,7 @@ export function drawStrikeMark(ctx, cx, cy, r, struck) {
   if (struck) {
     ctx.fillStyle = '#5a1e1a';
     ctx.fill();
-    ctx.lineWidth = 1.8;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = '#e85b4e';
     ctx.stroke();
     ctx.strokeStyle = '#ff948a';
@@ -167,15 +167,15 @@ export function drawStrikeMark(ctx, cx, cy, r, struck) {
     ctx.lineTo(-d, d);
     ctx.stroke();
   } else {
-    ctx.fillStyle = 'rgba(251, 244, 231, 0.14)';
+    ctx.fillStyle = 'rgba(251, 244, 231, 0.22)';
     ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(212, 160, 69, 0.55)';
+    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = 'rgba(235, 194, 112, 0.78)';
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.54, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(251, 244, 231, 0.3)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(251, 244, 231, 0.46)';
+    ctx.lineWidth = 1.1;
     ctx.stroke();
   }
   ctx.restore();
@@ -434,35 +434,47 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
 
   switch (id) {
     case 'greens': {
-      // Layered crisp butter-lettuce & arugula leaves
+      // Open ruffled crisp butter-lettuce salad leaves fanned wide
       const leaves = [
-        { ang: -0.55, dx: -r * 0.22, dy: r * 0.08, c1: '#62b852', c2: '#357d32' },
-        { ang: 0.55, dx: r * 0.22, dy: r * 0.08, c1: '#53aa47', c2: '#2d722c' },
-        { ang: 0, dx: 0, dy: -r * 0.08, c1: '#86d66c', c2: '#46973c' },
+        { ang: -0.78, dx: -r * 0.34, dy: r * 0.14, scale: 0.92, c1: '#64c252', c2: '#2d7b2c' },
+        { ang: 0.78, dx: r * 0.34, dy: r * 0.14, scale: 0.92, c1: '#59b549', c2: '#297229' },
+        { ang: -0.28, dx: -r * 0.16, dy: -r * 0.12, scale: 0.96, c1: '#86db68', c2: '#419738' },
+        { ang: 0.32, dx: r * 0.18, dy: -r * 0.1, scale: 0.94, c1: '#7bd460', c2: '#398e33' },
       ];
       for (const lf of leaves) {
         ctx.save();
         ctx.translate(lf.dx, lf.dy);
         ctx.rotate(lf.ang);
-        const g = ctx.createRadialGradient(-r * 0.1, -r * 0.2, r * 0.05, 0, 0, r * 0.72);
+        ctx.scale(lf.scale, lf.scale);
+        const g = ctx.createRadialGradient(0, -r * 0.2, r * 0.08, 0, 0, r * 0.65);
         g.addColorStop(0, lf.c1);
         g.addColorStop(1, lf.c2);
         ctx.fillStyle = g;
+        // Scalloped ruffled leaf silhouette
         ctx.beginPath();
-        ctx.moveTo(0, r * 0.58);
-        ctx.bezierCurveTo(-r * 0.62, r * 0.25, -r * 0.58, -r * 0.58, 0, -r * 0.66);
-        ctx.bezierCurveTo(r * 0.58, -r * 0.58, r * 0.62, r * 0.25, 0, r * 0.58);
+        ctx.moveTo(0, r * 0.5);
+        ctx.bezierCurveTo(-r * 0.45, r * 0.32, -r * 0.56, -r * 0.05, -r * 0.36, -r * 0.28);
+        ctx.quadraticCurveTo(-r * 0.44, -r * 0.52, -r * 0.14, -r * 0.5);
+        ctx.quadraticCurveTo(0, -r * 0.68, r * 0.14, -r * 0.5);
+        ctx.quadraticCurveTo(r * 0.44, -r * 0.52, r * 0.36, -r * 0.28);
+        ctx.bezierCurveTo(r * 0.56, -r * 0.05, r * 0.45, r * 0.32, 0, r * 0.5);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#255c24';
-        ctx.lineWidth = Math.max(1, r * 0.05);
+        ctx.strokeStyle = '#205b20';
+        ctx.lineWidth = Math.max(0.9, r * 0.045);
         ctx.stroke();
-        // Crisp center vein
-        ctx.strokeStyle = 'rgba(225, 250, 200, 0.75)';
-        ctx.lineWidth = Math.max(1, r * 0.06);
+
+        // Pale crisp lettuce rib & veins
+        ctx.strokeStyle = 'rgba(232, 253, 210, 0.8)';
+        ctx.lineWidth = Math.max(0.9, r * 0.055);
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(0, r * 0.45);
-        ctx.lineTo(0, -r * 0.38);
+        ctx.moveTo(0, r * 0.42);
+        ctx.lineTo(0, -r * 0.3);
+        ctx.moveTo(0, r * 0.08);
+        ctx.lineTo(-r * 0.18, -r * 0.1);
+        ctx.moveTo(0, r * 0.02);
+        ctx.lineTo(r * 0.18, -r * 0.14);
         ctx.stroke();
         ctx.restore();
       }
@@ -666,6 +678,39 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
     }
 
     case 'egg': {
+      // Uncooked station bin: unmistakable pair of warm whole farm eggs in shell!
+      if (st === COOK_STATE.READY) {
+        const eggs = [
+          { dx: -r * 0.22, dy: r * 0.08, rot: -0.24, c0: '#fff8ec', c1: '#e6c59c' },
+          { dx: r * 0.22, dy: -r * 0.02, rot: 0.2, c0: '#fffdf7', c1: '#eed3ae' },
+        ];
+        for (const eg of eggs) {
+          ctx.save();
+          ctx.translate(eg.dx, eg.dy);
+          ctx.rotate(eg.rot);
+          const sg = ctx.createRadialGradient(-r * 0.14, -r * 0.22, r * 0.06, 0, 0, r * 0.68);
+          sg.addColorStop(0, eg.c0);
+          sg.addColorStop(1, eg.c1);
+          ctx.fillStyle = sg;
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 0.62);
+          ctx.bezierCurveTo(r * 0.44, -r * 0.52, r * 0.52, r * 0.28, 0, r * 0.58);
+          ctx.bezierCurveTo(-r * 0.52, r * 0.28, -r * 0.44, -r * 0.52, 0, -r * 0.62);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ad875e';
+          ctx.lineWidth = Math.max(1, r * 0.055);
+          ctx.stroke();
+          // Glossy shell glint
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+          ctx.beginPath();
+          ctx.ellipse(-r * 0.14, -r * 0.2, r * 0.09, r * 0.18, -0.25, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
+
       const isGolden = st === COOK_STATE.GOLDEN;
       const isBurnt = st === COOK_STATE.BURNT;
       const isRaw = st === COOK_STATE.RAW;
@@ -678,10 +723,10 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
       ctx.bezierCurveTo(-r * 0.12, r * 0.86, -r * 0.78, r * 0.56, -r * 0.78, -r * 0.12);
       ctx.closePath();
 
-      ctx.fillStyle = isBurnt ? '#483f39' : isRaw ? 'rgba(246, 243, 232, 0.82)' : '#fffdf7';
+      ctx.fillStyle = isBurnt ? '#483f39' : isRaw ? 'rgba(246, 243, 232, 0.78)' : '#fffdf7';
       ctx.fill();
       ctx.lineWidth = Math.max(1.2, r * 0.08);
-      ctx.strokeStyle = isBurnt ? '#1c1816' : isGolden ? '#d99a3c' : '#d5ccb8';
+      ctx.strokeStyle = isBurnt ? '#1c1816' : isGolden ? '#d99a3c' : '#cfc5b0';
       ctx.stroke();
 
       // Yolk
@@ -690,8 +735,8 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
         yg.addColorStop(0, '#6e5034');
         yg.addColorStop(1, '#2f2014');
       } else if (isRaw) {
-        yg.addColorStop(0, '#ffe37a');
-        yg.addColorStop(1, '#e5a72c');
+        yg.addColorStop(0, '#ffe88a');
+        yg.addColorStop(1, '#e8ae34');
       } else {
         yg.addColorStop(0, '#ffdf5e');
         yg.addColorStop(0.65, '#f29f1a');
@@ -704,7 +749,7 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
 
       // Glossy yolk highlight
       if (!isBurnt) {
-        ctx.fillStyle = 'rgba(255, 255, 240, 0.7)';
+        ctx.fillStyle = 'rgba(255, 255, 240, 0.72)';
         ctx.beginPath();
         ctx.ellipse(-r * 0.06, -r * 0.12, r * 0.12, r * 0.07, -0.5, 0, Math.PI * 2);
         ctx.fill();
@@ -752,35 +797,41 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
     }
 
     case 'scallion': {
-      // Cluster of freshly sliced emerald & ivory spring-onion rings
-      const rings = [
-        { x: -0.34, y: 0.18, s: 0.34 },
-        { x: 0.32, y: 0.2, s: 0.32 },
-        { x: 0.0, y: -0.22, s: 0.36 },
-        { x: -0.24, y: -0.18, s: 0.26 },
-        { x: 0.28, y: -0.14, s: 0.27 },
+      // Crisp diagonally bundled green-and-white spring onion stalks + 2 fresh cut rings
+      ctx.save();
+      ctx.rotate(-0.55);
+      const stalks = [
+        { dy: -r * 0.24, len: r * 0.78 },
+        { dy: 0, len: r * 0.86 },
+        { dy: r * 0.24, len: r * 0.76 },
       ];
-      for (const rg of rings) {
-        ctx.save();
-        ctx.translate(rg.x * r, rg.y * r);
-        ctx.fillStyle = '#2f8a42';
-        ctx.beginPath();
-        ctx.arc(0, 0, rg.s * r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#1d5d2b';
-        ctx.lineWidth = Math.max(0.8, r * 0.045);
-        ctx.stroke();
+      for (const sk of stalks) {
+        const sg = ctx.createLinearGradient(-sk.len, sk.dy, sk.len, sk.dy);
+        sg.addColorStop(0, '#faf7ee');
+        sg.addColorStop(0.28, '#e3f4cf');
+        sg.addColorStop(0.45, '#4eb04d');
+        sg.addColorStop(1, '#256f32');
+        fillRoundRect(ctx, -sk.len, sk.dy - r * 0.11, sk.len * 2, r * 0.22, r * 0.1, sg);
+        strokeRoundRect(ctx, -sk.len, sk.dy - r * 0.11, sk.len * 2, r * 0.22, r * 0.1, '#1c5324', Math.max(0.8, r * 0.04));
 
-        ctx.fillStyle = '#d7f3c8';
+        // Hollow emerald cross-section at cut right tip
+        ctx.fillStyle = '#c8f0b8';
         ctx.beginPath();
-        ctx.arc(0, 0, rg.s * r * 0.64, 0, Math.PI * 2);
+        ctx.ellipse(sk.len - r * 0.05, sk.dy, r * 0.06, r * 0.1, 0, 0, Math.PI * 2);
         ctx.fill();
+      }
+      ctx.restore();
 
-        ctx.fillStyle = '#53b35c';
+      // Two crisp diagonal cut scallion rings in foreground
+      for (const [rx, ry] of [[0.34, 0.32], [-0.36, -0.34]]) {
+        ctx.fillStyle = '#2e883e';
         ctx.beginPath();
-        ctx.arc(0, 0, rg.s * r * 0.32, 0, Math.PI * 2);
+        ctx.arc(rx * r, ry * r, r * 0.21, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
+        ctx.fillStyle = '#e2f7d4';
+        ctx.beginPath();
+        ctx.arc(rx * r, ry * r, r * 0.12, 0, Math.PI * 2);
+        ctx.fill();
       }
       break;
     }
@@ -789,8 +840,54 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
       const isGolden = st === COOK_STATE.GOLDEN;
       const isBurnt = st === COOK_STATE.BURNT;
 
-      if (st === COOK_STATE.RAW || st === COOK_STATE.READY) {
-        // Creamy raw batter pour with soft bubbles
+      if (st === COOK_STATE.READY) {
+        // Ceramic mixing bowl of creamy pancake batter with wooden whisk/ladle handle!
+        // Wooden handle sticking out top-right
+        ctx.save();
+        ctx.strokeStyle = '#9c622b';
+        ctx.lineWidth = Math.max(2.4, r * 0.18);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(r * 0.08, -r * 0.05);
+        ctx.lineTo(r * 0.62, -r * 0.68);
+        ctx.stroke();
+        ctx.restore();
+
+        // Warm terracotta-cream ceramic mixing bowl body
+        const bowlG = ctx.createLinearGradient(-r * 0.78, 0, r * 0.78, r * 0.68);
+        bowlG.addColorStop(0, '#c86f44');
+        bowlG.addColorStop(0.55, '#a8512b');
+        bowlG.addColorStop(1, '#7c3619');
+        ctx.fillStyle = bowlG;
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.02, r * 0.74, 0, Math.PI, false);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#5e2711';
+        ctx.lineWidth = Math.max(1.1, r * 0.055);
+        ctx.stroke();
+
+        // Creamy batter surface inside bowl rim
+        ctx.fillStyle = '#fff5dc';
+        ctx.beginPath();
+        ctx.ellipse(0, -r * 0.04, r * 0.74, r * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8b4423';
+        ctx.lineWidth = Math.max(1.1, r * 0.055);
+        ctx.stroke();
+
+        // Swirl & creamy batter drip on lip
+        ctx.strokeStyle = '#d9b578';
+        ctx.lineWidth = Math.max(1, r * 0.05);
+        ctx.beginPath();
+        ctx.arc(-r * 0.04, -r * 0.04, r * 0.34, 0.2, Math.PI * 1.45);
+        ctx.stroke();
+        ctx.fillStyle = '#fff5dc';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.42, r * 0.2, r * 0.09, r * 0.16, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (st === COOK_STATE.RAW) {
+        // Creamy raw batter poured on the hot skillet with rising air bubbles
         const bg = ctx.createRadialGradient(-r * 0.15, -r * 0.18, r * 0.05, 0, 0, r * 0.85);
         bg.addColorStop(0, '#fff9eb');
         bg.addColorStop(1, '#e8d2a6');
@@ -801,7 +898,6 @@ export function drawIngredientIcon(ctx, id, cookState, cx, cy, r) {
         ctx.strokeStyle = '#c4a776';
         ctx.lineWidth = Math.max(1, r * 0.055);
         ctx.stroke();
-        // Tiny batter bubbles
         ctx.strokeStyle = 'rgba(176, 145, 96, 0.55)';
         ctx.lineWidth = Math.max(0.9, r * 0.04);
         for (const [bx, by, br] of [[-0.28, -0.1, 0.09], [0.22, -0.16, 0.07], [0.06, 0.16, 0.08]]) {
@@ -984,32 +1080,40 @@ export function drawPlatedDish(ctx, plate, cx, cy, r) {
       y -= r * 0.15;
     }
 
-    // Melted cheddar cheese slice with draped corners
+    // Melted cheddar cheese slice — flat perspective diamond/square slab with crisp overhanging corners
+    // (clearly reads as melted cheddar over the exposed seared patty, never a domed top bun!)
     if (hasCheese) {
-      const cg = ctx.createLinearGradient(-r * 0.6, y - r * 0.18, r * 0.6, y + r * 0.26);
-      cg.addColorStop(0, '#ffe470');
-      cg.addColorStop(0.6, '#f4b526');
-      cg.addColorStop(1, '#d38a12');
+      const cg = ctx.createLinearGradient(-r * 0.66, y - r * 0.12, r * 0.66, y + r * 0.24);
+      cg.addColorStop(0, '#ffe364');
+      cg.addColorStop(0.55, '#f2b122');
+      cg.addColorStop(1, '#cf8510');
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.moveTo(-r * 0.68, y + r * 0.04);
-      ctx.quadraticCurveTo(-r * 0.34, y - r * 0.22, 0, y - r * 0.22);
-      ctx.quadraticCurveTo(r * 0.38, y - r * 0.22, r * 0.68, y + r * 0.02);
-      ctx.lineTo(r * 0.56, y + r * 0.24);
-      ctx.quadraticCurveTo(r * 0.26, y + r * 0.1, 0, y + r * 0.28);
-      ctx.quadraticCurveTo(-r * 0.28, y + r * 0.1, -r * 0.58, y + r * 0.24);
+      ctx.moveTo(0, y - r * 0.12);             // flat back diamond corner
+      ctx.lineTo(r * 0.68, y + r * 0.03);      // sharp right edge
+      ctx.lineTo(r * 0.52, y + r * 0.24);      // melted right drape tab
+      ctx.lineTo(r * 0.18, y + r * 0.15);
+      ctx.lineTo(0, y + r * 0.32);             // crisp center front triangular melt corner!
+      ctx.lineTo(-r * 0.2, y + r * 0.15);
+      ctx.lineTo(-r * 0.54, y + r * 0.24);     // melted left drape tab
+      ctx.lineTo(-r * 0.68, y + r * 0.03);     // sharp left edge
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#a3640a';
       ctx.lineWidth = 1.6;
+      ctx.lineJoin = 'round';
       ctx.stroke();
 
-      // Soft warm highlight on melted cheese
-      ctx.fillStyle = 'rgba(255, 252, 212, 0.45)';
+      // Flat glossy cheddar sheen along top plane
+      ctx.fillStyle = 'rgba(255, 250, 206, 0.45)';
       ctx.beginPath();
-      ctx.ellipse(-r * 0.14, y - r * 0.05, r * 0.34, r * 0.08, -0.1, 0, Math.PI * 2);
+      ctx.moveTo(0, y - r * 0.08);
+      ctx.lineTo(r * 0.42, y + r * 0.02);
+      ctx.lineTo(0, y + r * 0.1);
+      ctx.lineTo(-r * 0.42, y + r * 0.02);
+      ctx.closePath();
       ctx.fill();
-      y -= r * 0.14;
+      y -= r * 0.1;
     }
 
     // Crisp ruffled greens

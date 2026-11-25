@@ -388,8 +388,8 @@ export function createWorld(random) {
       if (perfect) subParts.push('Perfect');
       if (comboMult > 1) subParts.push(`x${comboMult} Tip`);
       else subParts.push(`+${tip} tip`);
-      addPopup(`+${totalEarned} coins`, subParts.join(' · '), 740, 340, 'gold', 1.75);
-      spawnSparkles(740, 395, 18, 'gold');
+      state.serveHighlight.subtext = subParts.join(' · ');
+      spawnSparkles(740, 424, 16, 'gold');
 
       setHintOverride(
         `Served ${recipe.name}! +${totalEarned} coins${comboMult > 1 ? ` (x${comboMult} combo!)` : ''}`,

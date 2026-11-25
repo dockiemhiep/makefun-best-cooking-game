@@ -9,16 +9,16 @@ export const COOK_STATE = {
 };
 
 export const INGREDIENTS = [
-  { id: 'greens',   name: 'Greens',   key: '1', cookable: false, cookTime: 0,    accent: '#4d9b4a', tileBg: '#eef6ea' },
-  { id: 'tomato',   name: 'Tomato',   key: '2', cookable: false, cookTime: 0,    accent: '#d84537', tileBg: '#fcede9' },
-  { id: 'cheese',   name: 'Cheese',   key: '3', cookable: false, cookTime: 0,    accent: '#e8a825', tileBg: '#fdf6e2' },
-  { id: 'bun',      name: 'Bun',      key: '4', cookable: false, cookTime: 0,    accent: '#c8833c', tileBg: '#faf0e3' },
-  { id: 'patty',    name: 'Patty',    key: '5', cookable: true,  cookTime: 10.4, accent: '#9d4332', tileBg: '#f9ece8' },
-  { id: 'egg',      name: 'Egg',      key: '6', cookable: true,  cookTime: 9.0,  accent: '#e7a428', tileBg: '#fcf6e6' },
-  { id: 'noodle',   name: 'Noodle',   key: '7', cookable: true,  cookTime: 9.8,  accent: '#d49a3a', tileBg: '#faf3e4' },
-  { id: 'scallion', name: 'Scallion', key: '8', cookable: false, cookTime: 0,    accent: '#3e8c4b', tileBg: '#ecf5ec' },
-  { id: 'batter',   name: 'Batter',   key: '9', cookable: true,  cookTime: 9.2,  accent: '#d5a35e', tileBg: '#faf2e5' },
-  { id: 'berry',    name: 'Berry',    key: '0', cookable: false, cookTime: 0,    accent: '#6a4496', tileBg: '#f3edf9' },
+  { id: 'greens',   name: 'Greens',   key: '1', cookable: false, cookTime: 0,    accent: '#3d9442', tileBg: '#eff7ec' },
+  { id: 'tomato',   name: 'Tomato',   key: '2', cookable: false, cookTime: 0,    accent: '#cf3c2f', tileBg: '#fcede9' },
+  { id: 'cheese',   name: 'Cheese',   key: '3', cookable: false, cookTime: 0,    accent: '#d99316', tileBg: '#fdf6e2' },
+  { id: 'bun',      name: 'Bun',      key: '4', cookable: false, cookTime: 0,    accent: '#b56e28', tileBg: '#faf0e3' },
+  { id: 'patty',    name: 'Patty',    key: '5', cookable: true,  cookTime: 10.4, accent: '#9a3b2c', tileBg: '#f9ece8' },
+  { id: 'egg',      name: 'Egg',      key: '6', cookable: true,  cookTime: 9.0,  accent: '#cc821b', tileBg: '#fcf6e6' },
+  { id: 'noodle',   name: 'Noodle',   key: '7', cookable: true,  cookTime: 9.8,  accent: '#b87a24', tileBg: '#faf3e4' },
+  { id: 'scallion', name: 'Scallion', key: '8', cookable: false, cookTime: 0,    accent: '#2e8442', tileBg: '#ecf5ec' },
+  { id: 'batter',   name: 'Batter',   key: '9', cookable: true,  cookTime: 9.2,  accent: '#a8572c', tileBg: '#faf2e5' },
+  { id: 'berry',    name: 'Berry',    key: '0', cookable: false, cookTime: 0,    accent: '#6a3e99', tileBg: '#f3edf9' },
 ];
 
 export const INGREDIENT_BY_ID = Object.fromEntries(INGREDIENTS.map((item) => [item.id, item]));

@@ -52,16 +52,19 @@ function runShotMode(name) {
   };
   let painted = 0;
   function paint() {
-    renderer.resize();
-    renderer.draw(world, ui);
-    painted += 1;
     if (painted < 2) {
+      renderer.resize();
+      renderer.draw(world, ui);
+      painted += 1;
       requestAnimationFrame(paint);
     } else {
+      // Wait one extra frame after the second draw so the compositor has committed all pixels.
       window.__shotReady = true;
     }
   }
-  requestAnimationFrame(paint);
+  const startPaint = () => requestAnimationFrame(paint);
+  if (document.readyState === 'complete') startPaint();
+  else window.addEventListener('load', startPaint, { once: true });
 }
 
 function runLiveGame() {

@@ -39,12 +39,12 @@ export const SCREEN = {
 
 /** Exact hit rects for overlay buttons (shared with input.js so clicks never drift). */
 export const OVERLAY_RECTS = {
-  titleStart: { x: 470, y: 506, w: 340, h: 58 },
-  pauseResume: { x: 486, y: 368, w: 308, h: 54 },
-  pauseRestart: { x: 486, y: 436, w: 308, h: 48 },
-  resultsNext: { x: 422, y: 488, w: 210, h: 54 },
-  resultsReplay: { x: 648, y: 488, w: 210, h: 54 },
-  failedRetry: { x: 486, y: 488, w: 308, h: 54 },
+  titleStart: { x: 470, y: 486, w: 340, h: 54 },
+  pauseResume: { x: 486, y: 368, w: 308, h: 52 },
+  pauseRestart: { x: 486, y: 434, w: 308, h: 48 },
+  resultsNext: { x: 376, y: 476, w: 256, h: 54 },
+  resultsReplay: { x: 648, y: 476, w: 256, h: 54 },
+  failedRetry: { x: 476, y: 476, w: 328, h: 54 },
 };
 
 function formatClock(seconds) {
@@ -92,7 +92,6 @@ export function createRenderer(canvas) {
     view.y = (height - STAGE.height * view.scale) / 2;
   }
 
-  /** Convert CSS client coordinates into logical 1280x720 stage coordinates. */
   function clientToStage(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const px = (clientX - rect.left) * view.dpr;
@@ -107,8 +106,18 @@ export function createRenderer(canvas) {
     ctx.font = `${weight} ${size}px ${family}`;
   }
 
+  /** Unified dark-espresso keycap badge used consistently across stations, burners, serve, and trash. */
+  function drawKeycap(x, y, w, h, label, accentBorder = 'rgba(212, 160, 69, 0.5)') {
+    fillRoundRect(ctx, x, y, w, h, 6, '#2a1f18');
+    strokeRoundRect(ctx, x, y, w, h, 6, accentBorder, 1.2);
+    setFont('700', w > 36 ? 10.5 : 11.5);
+    ctx.fillStyle = PALETTE.creamText;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 0.5);
+  }
+
   function drawKitchenBackdrop() {
-    // 1. Warm subway-tile backsplash (y = 58 .. 262)
     const wallTop = LAYOUT.orderBoard.y;
     const wallH = LAYOUT.counter.y - wallTop;
     const tileW = 64;
@@ -117,7 +126,6 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.tileLight;
     ctx.fillRect(0, wallTop, STAGE.width, wallH);
 
-    // Subtle alternating hand-glazed tiles
     for (let row = 0; row * tileH < wallH; row += 1) {
       const ty = wallTop + row * tileH;
       const offset = (row % 2) * (tileW / 2);
@@ -133,7 +141,7 @@ export function createRenderer(canvas) {
       }
     }
 
-    // Warm overhead bistro pendant lamp light pools
+    // Overhead warm pendant light pools
     for (const lx of [222, 640, 1058]) {
       const glow = ctx.createRadialGradient(lx, wallTop + 6, 12, lx, wallTop + 56, 260);
       glow.addColorStop(0, 'rgba(255, 226, 152, 0.34)');
@@ -143,22 +151,20 @@ export function createRenderer(canvas) {
       ctx.fillRect(lx - 260, wallTop, 520, wallH);
     }
 
-    // Soft shadow under top HUD rail
     const topShadow = ctx.createLinearGradient(0, wallTop, 0, wallTop + 18);
     topShadow.addColorStop(0, 'rgba(27, 17, 12, 0.24)');
     topShadow.addColorStop(1, 'rgba(27, 17, 12, 0)');
     ctx.fillStyle = topShadow;
     ctx.fillRect(0, wallTop, STAGE.width, 18);
 
-    // Forged-iron & brass ticket hanging rail
+    // Forged-iron & brass ticket rail
     const ry = LAYOUT.orderRailY;
     fillRoundRect(ctx, 16, ry - 4, STAGE.width - 32, 8, 4, PALETTE.railIron);
     ctx.fillStyle = PALETTE.brass;
     ctx.fillRect(24, ry - 2, STAGE.width - 48, 2);
 
-    // 2. Butcher-block oak countertop (y = 262 .. 720)
+    // Butcher-block oak countertop
     const cy = LAYOUT.counter.y;
-    // Beveled brass & wood backsplash lip
     ctx.fillStyle = PALETTE.woodTrim;
     ctx.fillRect(0, cy - 3, STAGE.width, 5);
     ctx.fillStyle = '#d99e63';
@@ -171,7 +177,6 @@ export function createRenderer(canvas) {
     ctx.fillStyle = woodGrad;
     ctx.fillRect(0, cy + 6, STAGE.width, LAYOUT.prepRail.y - (cy + 6));
 
-    // Butcher-block horizontal plank seams & subtle grain
     ctx.strokeStyle = 'rgba(71, 42, 21, 0.22)';
     ctx.lineWidth = 1;
     for (let py = cy + 36; py < LAYOUT.prepRail.y; py += 38) {
@@ -188,7 +193,7 @@ export function createRenderer(canvas) {
       ctx.stroke();
     }
 
-    // 3. Recessed dark walnut & stainless prep rail at bottom (y = 574 .. 708)
+    // Recessed walnut prep rail along counter front
     const railG = ctx.createLinearGradient(0, LAYOUT.prepRail.y, 0, STAGE.height);
     railG.addColorStop(0, '#3a271b');
     railG.addColorStop(0.12, '#4a3324');
@@ -196,17 +201,14 @@ export function createRenderer(canvas) {
     ctx.fillStyle = railG;
     ctx.fillRect(0, LAYOUT.prepRail.y, STAGE.width, STAGE.height - LAYOUT.prepRail.y);
 
-    // Brass trim edge between countertop & prep rail
     ctx.fillStyle = '#c8963e';
     ctx.fillRect(0, LAYOUT.prepRail.y, STAGE.width, 2);
 
-    // Counter front lip
     ctx.fillStyle = '#1b110c';
     ctx.fillRect(0, 708, STAGE.width, 12);
   }
 
   function drawHud(state, ui) {
-    // Rich dark walnut header bar
     const g = ctx.createLinearGradient(0, 0, 0, LAYOUT.hud.h);
     g.addColorStop(0, PALETTE.hudBg);
     g.addColorStop(1, PALETTE.hudBgBottom);
@@ -215,7 +217,7 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.brass;
     ctx.fillRect(0, LAYOUT.hud.h - 2, STAGE.width, 2);
 
-    // Left: Golden Ladle crest + Title + Shift indicator
+    // Left: Emblem + Title + Shift pill
     drawLadleCrest(ctx, 44, 29, 19);
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
@@ -223,7 +225,6 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.creamText;
     ctx.fillText('The Golden Ladle', 72, 29);
 
-    // Compact shift badge
     fillRoundRect(ctx, 256, 17, 74, 24, 12, 'rgba(212, 160, 69, 0.16)');
     strokeRoundRect(ctx, 256, 17, 74, 24, 12, 'rgba(212, 160, 69, 0.45)', 1);
     setFont('600', 12);
@@ -231,7 +232,7 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.fillText(`SHIFT ${state.shiftNumber}`, 293, 29);
 
-    // Center-left: Shift Timer
+    // Shift Timer
     const urgentTime = state.timeLeft <= 15;
     const warnTime = !urgentTime && state.timeLeft <= 30;
     const timerColor = urgentTime ? PALETTE.crimsonBright : warnTime ? PALETTE.amber : PALETTE.creamText;
@@ -243,17 +244,19 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'left';
     ctx.fillText(formatClock(state.timeLeft), 412, 30);
 
-    // Center: Coins + Goal progress bar
-    const goalMet = state.coins >= RULES.coinGoal;
-    const nextTarget =
-      state.coins >= RULES.starThresholds[2]
-        ? RULES.starThresholds[2]
-        : state.coins >= RULES.starThresholds[1]
-          ? RULES.starThresholds[2]
-          : state.coins >= RULES.starThresholds[0]
-            ? RULES.starThresholds[1]
-            : RULES.coinGoal;
-    const progress = Math.min(1, state.coins / nextTarget);
+    // Coins + dynamic-spaced Goal / Star Progress
+    const [s1, s2, s3] = RULES.starThresholds;
+    const goalMet = state.coins >= s1;
+    const maxedStars = state.coins >= s3;
+    const targetForBar = state.coins >= s2 ? s3 : state.coins >= s1 ? s2 : s1;
+    const progress = maxedStars ? 1 : Math.min(1, state.coins / targetForBar);
+    const coinNote = maxedStars
+      ? 'All 3 stars!'
+      : state.coins >= s2
+        ? `2 stars · next ${s3}`
+        : goalMet
+          ? `Goal met · next ${s2}`
+          : `/ ${s1} goal`;
 
     fillRoundRect(ctx, 514, 11, 232, 36, 10, 'rgba(255, 245, 224, 0.06)');
     strokeRoundRect(
@@ -270,18 +273,28 @@ export function createRenderer(canvas) {
     setFont('700', 20);
     ctx.fillStyle = PALETTE.brassBright;
     ctx.textAlign = 'left';
-    ctx.fillText(`${state.coins}`, 554, 24);
-    setFont('500', 12);
-    ctx.fillStyle = goalMet ? PALETTE.greenBright : PALETTE.creamMuted;
-    ctx.fillText(goalMet ? `Goal met · next ${nextTarget}` : `/ ${RULES.coinGoal} goal`, 602, 24);
+    const coinStr = String(state.coins);
+    ctx.fillText(coinStr, 554, 24);
+    const numW = ctx.measureText(coinStr).width;
+    setFont('600', 12);
+    ctx.fillStyle = maxedStars ? '#ffe994' : goalMet ? PALETTE.greenBright : PALETTE.creamMuted;
+    ctx.fillText(coinNote, 554 + numW + 8, 24);
 
-    // Mini goal bar underneath coin text
+    // Progress bar beneath coins
     fillRoundRect(ctx, 554, 36, 178, 5, 2.5, 'rgba(255, 255, 255, 0.12)');
     if (progress > 0) {
-      fillRoundRect(ctx, 554, 36, Math.max(6, 178 * progress), 5, 2.5, goalMet ? PALETTE.greenBright : PALETTE.brassBright);
+      fillRoundRect(
+        ctx,
+        554,
+        36,
+        Math.max(6, 178 * progress),
+        5,
+        2.5,
+        maxedStars ? '#ffd447' : goalMet ? PALETTE.greenBright : PALETTE.brassBright,
+      );
     }
 
-    // Center-right: Combo Meter
+    // Combo Meter
     const mult = getComboMultiplier(state.combo);
     const hotCombo = mult >= 3;
     const warmCombo = mult === 2;
@@ -304,16 +317,15 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.fillText(`x${mult}`, 846, 30);
 
-    // 3 streak pips showing progress to x3
     for (let p = 0; p < 3; p += 1) {
       const lit = state.combo > p;
       ctx.beginPath();
       ctx.arc(882 + p * 14, 29, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = lit ? (hotCombo ? '#ffe57a' : PALETTE.greenBright) : 'rgba(255, 245, 224, 0.18)';
+      ctx.fillStyle = lit ? (hotCombo ? '#ffe57a' : PALETTE.greenBright) : 'rgba(255, 245, 224, 0.22)';
       ctx.fill();
     }
 
-    // Right: Strikes (3 ceramic plates)
+    // Strikes
     const strikeBg = state.strikeFlash > 0 ? 'rgba(201, 67, 56, 0.35)' : 'rgba(255, 245, 224, 0.06)';
     fillRoundRect(ctx, 942, 11, 212, 36, 10, strikeBg);
     strokeRoundRect(
@@ -335,7 +347,7 @@ export function createRenderer(canvas) {
       drawStrikeMark(ctx, 1044 + s * 34, 29, 12, s < state.strikes);
     }
 
-    // Mute & Pause icon-only controls (identical 36x36 geometry)
+    // Mute & Pause controls
     const drawHudIconBtn = (rect, hovered, active, drawIconFn) => {
       fillRoundRect(
         ctx,
@@ -380,18 +392,13 @@ export function createRenderer(canvas) {
 
     ctx.save();
 
-    // Soft card drop shadow onto warm tile wall
-    ctx.fillStyle = 'rgba(42, 26, 15, 0.18)';
     fillRoundRect(ctx, rect.x + 2, rect.y + 5, rect.w, rect.h, 12, 'rgba(42, 26, 15, 0.18)');
+    fillRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, highlighted ? PALETTE.cardHighlight : PALETTE.cardPaper);
 
-    // Card parchment body
-    const bg = highlighted ? PALETTE.cardHighlight : PALETTE.cardPaper;
-    fillRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, bg);
-
-    // Highlight glow ring when matched on serve, else warm card border
     if (highlighted) {
-      strokeRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, PALETTE.greenBright, 3);
-      strokeRoundRect(ctx, rect.x - 3, rect.y - 3, rect.w + 6, rect.h + 6, 15, 'rgba(71, 199, 126, 0.35)', 4);
+      // Crisp tight emerald highlight border (stays cleanly clear of brass rail above and hint bar below)
+      strokeRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, PALETTE.green, 2.8);
+      strokeRoundRect(ctx, rect.x - 1.5, rect.y - 1.5, rect.w + 3, rect.h + 3, 13.5, 'rgba(71, 199, 126, 0.3)', 2);
     } else {
       strokeRoundRect(
         ctx,
@@ -405,15 +412,15 @@ export function createRenderer(canvas) {
       );
     }
 
-    // Brass ticket clip pinning card to the overhead rail
-    fillRoundRect(ctx, rect.x + rect.w / 2 - 18, rect.y - 11, 36, 16, 4, PALETTE.brass);
-    strokeRoundRect(ctx, rect.x + rect.w / 2 - 18, rect.y - 11, 36, 16, 4, PALETTE.brassDark, 1);
+    // Brass ticket clip
+    fillRoundRect(ctx, rect.x + rect.w / 2 - 18, rect.y - 10, 36, 15, 4, PALETTE.brass);
+    strokeRoundRect(ctx, rect.x + rect.w / 2 - 18, rect.y - 10, 36, 15, 4, PALETTE.brassDark, 1);
     ctx.beginPath();
-    ctx.arc(rect.x + rect.w / 2, rect.y - 3, 2.8, 0, Math.PI * 2);
+    ctx.arc(rect.x + rect.w / 2, rect.y - 2.5, 2.6, 0, Math.PI * 2);
     ctx.fillStyle = '#3a2614';
     ctx.fill();
 
-    // Header row: Dish name + Coin price pill
+    // Dish name + price or SERVED badge
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     setFont('700', 19, FONTS.display);
@@ -421,30 +428,28 @@ export function createRenderer(canvas) {
     ctx.fillText(recipe.name, rect.x + 16, rect.y + 26);
 
     if (highlighted && servedBadgeText) {
-      fillRoundRect(ctx, rect.x + rect.w - 112, rect.y + 12, 96, 26, 13, PALETTE.green);
+      fillRoundRect(ctx, rect.x + rect.w - 104, rect.y + 13, 88, 25, 12.5, PALETTE.green);
       setFont('800', 12);
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText(servedBadgeText, rect.x + rect.w - 64, rect.y + 25);
+      ctx.fillText(servedBadgeText, rect.x + rect.w - 60, rect.y + 26);
     } else {
-      // Price pill
-      fillRoundRect(ctx, rect.x + rect.w - 76, rect.y + 12, 60, 26, 13, '#f4e6c8');
-      strokeRoundRect(ctx, rect.x + rect.w - 76, rect.y + 12, 60, 26, 13, '#d7b778', 1);
-      drawCoin(ctx, rect.x + rect.w - 61, rect.y + 25, 8);
+      fillRoundRect(ctx, rect.x + rect.w - 76, rect.y + 13, 60, 25, 12.5, '#f4e6c8');
+      strokeRoundRect(ctx, rect.x + rect.w - 76, rect.y + 13, 60, 25, 12.5, '#d7b778', 1);
+      drawCoin(ctx, rect.x + rect.w - 61, rect.y + 25.5, 8);
       setFont('700', 14);
       ctx.fillStyle = PALETTE.inkDark;
       ctx.textAlign = 'left';
       ctx.fillText(`${recipe.price}`, rect.x + rect.w - 48, rect.y + 26);
     }
 
-    // Subtle hairline separator
     ctx.fillStyle = '#eadcc3';
     ctx.fillRect(rect.x + 16, rect.y + 44, rect.w - 32, 1);
 
-    // Recipe icon sequence (each step in order with warm tile & label)
+    // Harmonized step tiles with generous + connector breathing room
     const steps = recipe.steps;
-    const stepW = steps.length === 4 ? 82 : 108;
-    const stepGap = steps.length === 4 ? 12 : 18;
+    const stepW = steps.length === 4 ? 76 : 94;
+    const stepGap = 18;
     const totalRowW = steps.length * stepW + (steps.length - 1) * stepGap;
     const startX = rect.x + (rect.w - totalRowW) / 2;
     const rowY = rect.y + 52;
@@ -455,7 +460,6 @@ export function createRenderer(canvas) {
       const spec = INGREDIENT_BY_ID[step.id];
       const sx = startX + i * (stepW + stepGap);
 
-      // Step pill frame
       fillRoundRect(ctx, sx, rowY, stepW, rowH, 9, step.cooked ? '#fdf3dc' : '#f7f1e5');
       strokeRoundRect(
         ctx,
@@ -468,7 +472,6 @@ export function createRenderer(canvas) {
         step.cooked ? 1.4 : 1,
       );
 
-      // Drawn ingredient icon (cooked items shown golden!)
       drawIngredientIcon(
         ctx,
         step.id,
@@ -478,27 +481,24 @@ export function createRenderer(canvas) {
         16,
       );
 
-      // Tiny flame badge on cookable recipe steps
       if (step.cooked) {
-        drawFlame(ctx, sx + stepW - 11, rowY + 11, 5.5, '#de6522');
+        drawFlame(ctx, sx + stepW - 10, rowY + 11, 5.2, '#de6522');
       }
 
-      // Ingredient name label
       setFont('600', 11);
       ctx.fillStyle = PALETTE.inkMid;
       ctx.textAlign = 'center';
       ctx.fillText(spec.name, sx + stepW / 2, rowY + 48);
 
-      // Subtle plus connector between steps
       if (i < steps.length - 1) {
         setFont('700', 14);
-        ctx.fillStyle = '#b49e82';
+        ctx.fillStyle = '#a89074';
         ctx.textAlign = 'center';
         ctx.fillText('+', sx + stepW + stepGap / 2, rowY + rowH / 2);
       }
     }
 
-    // Bottom Patience bar + remaining seconds
+    // Patience bar + seconds
     const barX = rect.x + 16;
     const barY = rect.y + 122;
     const barW = rect.w - 72;
@@ -518,7 +518,6 @@ export function createRenderer(canvas) {
   }
 
   function drawOrderBoard(state) {
-    // Empty slot outlines so the 3-slot rail structure always looks intentional
     for (let slot = 0; slot < RULES.maxOrders; slot += 1) {
       if (slot < state.orders.length) continue;
       const rect = getOrderCardRect(slot);
@@ -541,8 +540,15 @@ export function createRenderer(canvas) {
     }
   }
 
-  function drawHintBar(hint) {
+  function drawHintBar(hint, isModalOpen) {
     const r = LAYOUT.hintBar;
+    if (isModalOpen) {
+      // Quiet neutral strip under full-screen modals so no sliced text leaks past modal edges
+      fillRoundRect(ctx, r.x, r.y, r.w, r.h, 8, PALETTE.hintBg);
+      strokeRoundRect(ctx, r.x, r.y, r.w, r.h, 8, 'rgba(212, 160, 69, 0.25)', 1);
+      return;
+    }
+
     const bg =
       hint.tone === 'good'
         ? PALETTE.hintGoodBg
@@ -571,7 +577,6 @@ export function createRenderer(canvas) {
     fillRoundRect(ctx, r.x, r.y, r.w, r.h, 8, bg);
     strokeRoundRect(ctx, r.x, r.y, r.w, r.h, 8, border, 1.3);
 
-    // Status beacon dot
     ctx.beginPath();
     ctx.arc(r.x + 18, r.y + r.h / 2, 4.5, 0, Math.PI * 2);
     ctx.fillStyle = dot;
@@ -583,11 +588,14 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.creamText;
     ctx.fillText(hint.text, r.x + 32, r.y + r.h / 2 + 0.5);
 
-    // Compact right-hand keyboard reminder
     setFont('500', 11.5);
-    ctx.fillStyle = PALETTE.creamMuted;
+    ctx.fillStyle = '#dfd1bc';
     ctx.textAlign = 'right';
-    ctx.fillText('1-0 Ingredients   Q/W Burners   Space Serve   T Trash   P Pause', r.x + r.w - 16, r.y + r.h / 2 + 0.5);
+    ctx.fillText(
+      '1-0 Ingredients  ·  Q/W Burners  ·  Space Serve  ·  T Trash  ·  P Pause',
+      r.x + r.w - 16,
+      r.y + r.h / 2 + 0.5,
+    );
   }
 
   function drawStoveRange(state, ui) {
@@ -597,10 +605,8 @@ export function createRenderer(canvas) {
     ctx.save();
     ctx.translate(shakeX, 0);
 
-    // Drop shadow onto butcher-block counter
     fillRoundRect(ctx, st.x + 2, st.y + 6, st.w, st.h, 16, 'rgba(34, 19, 10, 0.32)');
 
-    // Brushed steel outer bezel
     const bezelG = ctx.createLinearGradient(st.x, st.y, st.x, st.y + st.h);
     bezelG.addColorStop(0, '#6a6871');
     bezelG.addColorStop(0.5, '#434148');
@@ -608,17 +614,15 @@ export function createRenderer(canvas) {
     fillRoundRect(ctx, st.x, st.y, st.w, st.h, 16, bezelG);
     strokeRoundRect(ctx, st.x, st.y, st.w, st.h, 16, '#84828b', 1.2);
 
-    // Dark recessed cast-iron cooktop well
     fillRoundRect(ctx, st.x + 10, st.y + 10, st.w - 20, st.h - 20, 11, PALETTE.stoveInner);
 
-    // Subtle engraved range label
     setFont('600', 11.5);
-    ctx.fillStyle = '#99949f';
+    ctx.fillStyle = '#a49fab';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText('STOVE RANGE', st.x + 24, st.y + 27);
 
-    // Brass temperature dial ornaments at top-right of range
+    // Brass stove dials
     for (let d = 0; d < 2; d += 1) {
       const dx = st.x + st.w - 58 + d * 28;
       const dy = st.y + 26;
@@ -638,7 +642,6 @@ export function createRenderer(canvas) {
       ctx.stroke();
     }
 
-    // Two burners
     for (let i = 0; i < LAYOUT.burners.length; i += 1) {
       const bLayout = LAYOUT.burners[i];
       const burner = state.burners[i];
@@ -650,13 +653,12 @@ export function createRenderer(canvas) {
       const cy = bLayout.cy;
       const ringR = bLayout.r;
 
-      // Cast-iron burner ring well
+      // Cast-iron burner well & grate
       ctx.beginPath();
       ctx.arc(cx, cy, ringR - 8, 0, Math.PI * 2);
       ctx.fillStyle = '#101013';
       ctx.fill();
 
-      // Concentric grate rings
       ctx.strokeStyle = '#343239';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -666,7 +668,6 @@ export function createRenderer(canvas) {
       ctx.arc(cx, cy, ringR - 44, 0, Math.PI * 2);
       ctx.stroke();
 
-      // 8 cast-iron grate arms
       ctx.strokeStyle = '#3f3d46';
       ctx.lineWidth = 4;
       ctx.lineCap = 'round';
@@ -678,103 +679,105 @@ export function createRenderer(canvas) {
         ctx.stroke();
       }
 
-      // Active gas flame glow beneath pan
+      // Burner heat glow underneath skillet
       if (item) {
-        const flameGlow = ctx.createRadialGradient(cx, cy, 18, cx, cy, ringR - 4);
+        const flameGlow = ctx.createRadialGradient(cx, cy, 18, cx, cy, ringR - 6);
         if (item.state === COOK_STATE.BURNT) {
-          flameGlow.addColorStop(0, 'rgba(232, 72, 48, 0.55)');
+          flameGlow.addColorStop(0, 'rgba(232, 72, 48, 0.52)');
           flameGlow.addColorStop(1, 'rgba(232, 72, 48, 0)');
         } else if (item.state === COOK_STATE.GOLDEN) {
-          flameGlow.addColorStop(0, 'rgba(84, 214, 134, 0.45)');
-          flameGlow.addColorStop(0.7, 'rgba(242, 180, 62, 0.25)');
-          flameGlow.addColorStop(1, 'rgba(242, 180, 62, 0)');
+          flameGlow.addColorStop(0, 'rgba(255, 212, 71, 0.42)');
+          flameGlow.addColorStop(0.68, 'rgba(71, 199, 126, 0.24)');
+          flameGlow.addColorStop(1, 'rgba(71, 199, 126, 0)');
         } else {
-          flameGlow.addColorStop(0, 'rgba(255, 148, 48, 0.45)');
-          flameGlow.addColorStop(0.65, 'rgba(86, 168, 255, 0.22)');
-          flameGlow.addColorStop(1, 'rgba(86, 168, 255, 0)');
+          flameGlow.addColorStop(0, 'rgba(138, 190, 255, 0.34)');
+          flameGlow.addColorStop(0.7, 'rgba(235, 196, 130, 0.14)');
+          flameGlow.addColorStop(1, 'rgba(138, 190, 255, 0)');
         }
         ctx.fillStyle = flameGlow;
         ctx.beginPath();
-        ctx.arc(cx, cy, ringR - 4, 0, Math.PI * 2);
+        ctx.arc(cx, cy, ringR - 6, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Progress Ring Track (always visible subtly, vivid when cooking!)
+      // Progress Ring Track: dark base + vivid GREEN GOLDEN ZONE + crimson burn zone + crisp boundary ticks
       const startAngle = -Math.PI / 2;
       const fullArc = Math.PI * 2;
       const goldenA0 = startAngle + RULES.goldenStart * fullArc;
       const goldenA1 = startAngle + RULES.burnStart * fullArc;
       const burnA1 = startAngle + fullArc;
 
-      // Base ring track
-      ctx.lineWidth = 9;
+      ctx.lineWidth = 10;
       ctx.lineCap = 'butt';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.beginPath();
       ctx.arc(cx, cy, ringR, 0, fullArc);
       ctx.stroke();
 
-      // Painted GREEN GOLDEN WINDOW zone on track (always legible when cooking!)
-      ctx.strokeStyle = item ? 'rgba(71, 199, 126, 0.48)' : 'rgba(71, 199, 126, 0.18)';
-      ctx.lineWidth = 10;
+      // Green golden target zone (remains clearly visible ahead of the golden progress sweep!)
+      ctx.strokeStyle = item ? 'rgba(58, 214, 126, 0.56)' : 'rgba(58, 214, 126, 0.2)';
+      ctx.lineWidth = 11;
       ctx.beginPath();
       ctx.arc(cx, cy, ringR, goldenA0, goldenA1);
       ctx.stroke();
 
-      // Painted CRIMSON BURN ZONE on track
-      ctx.strokeStyle = item ? 'rgba(218, 72, 58, 0.42)' : 'rgba(218, 72, 58, 0.14)';
-      ctx.lineWidth = 10;
+      // Crimson burn danger zone
+      ctx.strokeStyle = item ? 'rgba(226, 72, 58, 0.52)' : 'rgba(226, 72, 58, 0.16)';
+      ctx.lineWidth = 11;
       ctx.beginPath();
       ctx.arc(cx, cy, ringR, goldenA1, burnA1);
       ctx.stroke();
 
+      // Crisp radial boundary ticks marking exact Golden-Start and Burn-Start thresholds
+      for (const [tickAngle, tickColor] of [
+        [goldenA0, '#8ef5b8'],
+        [goldenA1, '#ff8e84'],
+      ]) {
+        ctx.strokeStyle = item ? tickColor : 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(tickAngle) * (ringR - 8), cy + Math.sin(tickAngle) * (ringR - 8));
+        ctx.lineTo(cx + Math.cos(tickAngle) * (ringR + 8), cy + Math.sin(tickAngle) * (ringR + 8));
+        ctx.stroke();
+      }
+
       if (item) {
-        // Active progress arc fill
+        // Active elapsed sweep: warm cream-steel when raw, radiant GOLD when inside the green zone, crimson when burnt!
         const curAngle = startAngle + item.progress * fullArc;
         const arcColor =
           item.state === COOK_STATE.BURNT
             ? PALETTE.crimsonBright
             : item.state === COOK_STATE.GOLDEN
-              ? PALETTE.greenBright
-              : '#f2a43b';
+              ? '#ffd447'
+              : '#dfd2bc';
         ctx.strokeStyle = arcColor;
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 7;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.arc(cx, cy, ringR, startAngle, curAngle);
         ctx.stroke();
 
-        // Crisp progress tip dot
-        const tipX = cx + Math.cos(curAngle) * ringR;
-        const tipY = cy + Math.sin(curAngle) * ringR;
-        ctx.beginPath();
-        ctx.arc(tipX, tipY, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.strokeStyle = arcColor;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // Skillet handle & dark cast-iron skillet pan
+        // Cast-iron skillet tucked cleanly inside the ring (compact riveted side ears stay well inside r=68 < 81!)
         ctx.save();
         ctx.translate(cx, cy);
         const scalePop = 1 + pulse * 0.05;
         ctx.scale(scalePop, scalePop);
 
-        // Skillet handle pointing diagonally down-left/down-right
-        ctx.save();
-        ctx.rotate(i === 0 ? 2.38 : 0.76);
-        fillRoundRect(ctx, 48, -7, 36, 14, 6, '#39373f');
-        strokeRoundRect(ctx, 48, -7, 36, 14, 6, '#17161a', 1.5);
-        ctx.restore();
+        // Twin forged helper-loop handles on left & right of skillet rim (never cross the progress ring!)
+        ctx.strokeStyle = '#575560';
+        ctx.lineWidth = 4;
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(side * 56, 0, 11, side < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, side < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
+          ctx.stroke();
+        }
 
-        // Skillet body
-        const panG = ctx.createRadialGradient(-14, -14, 8, 0, 0, 62);
-        panG.addColorStop(0, '#44424b');
+        const panG = ctx.createRadialGradient(-14, -14, 8, 0, 0, 58);
+        panG.addColorStop(0, '#45434d');
         panG.addColorStop(0.75, '#252429');
         panG.addColorStop(1, '#18171c');
         ctx.beginPath();
-        ctx.arc(0, 0, 62, 0, Math.PI * 2);
+        ctx.arc(0, 0, 58, 0, Math.PI * 2);
         ctx.fillStyle = panG;
         ctx.fill();
         ctx.lineWidth = hovered ? 3 : 2.2;
@@ -782,24 +785,32 @@ export function createRenderer(canvas) {
           hovered
             ? PALETTE.brassBright
             : item.state === COOK_STATE.GOLDEN
-              ? PALETTE.greenBright
+              ? '#ffd447'
               : item.state === COOK_STATE.BURNT
                 ? PALETTE.crimsonBright
                 : '#6e6c78';
         ctx.stroke();
 
-        // Inner skillet floor
         ctx.beginPath();
-        ctx.arc(0, 0, 53, 0, Math.PI * 2);
+        ctx.arc(0, 0, 49, 0, Math.PI * 2);
         ctx.fillStyle = '#1f1e23';
         ctx.fill();
 
-        // Drawn sizzling ingredient inside pan
-        drawIngredientIcon(ctx, item.id, item.state, 0, 2, 36);
+        drawIngredientIcon(ctx, item.id, item.state, 0, 2, 34);
         ctx.restore();
 
-        // Steam (golden) or smoke (burnt)
-        drawBurnerVapor(ctx, cx, cy, 56, item.state, state.elapsed);
+        // Crisp progress tip indicator drawn on top of everything on the ring
+        const tipX = cx + Math.cos(curAngle) * ringR;
+        const tipY = cy + Math.sin(curAngle) * ringR;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = item.state === COOK_STATE.GOLDEN ? '#1f7a49' : arcColor;
+        ctx.lineWidth = 2.6;
+        ctx.stroke();
+
+        drawBurnerVapor(ctx, cx, cy, 52, item.state, state.elapsed);
       } else if (hovered) {
         ctx.strokeStyle = 'rgba(241, 199, 107, 0.55)';
         ctx.lineWidth = 2;
@@ -808,48 +819,48 @@ export function createRenderer(canvas) {
         ctx.stroke();
       }
 
-      // Keycap badge (Q / W) at top-left of burner
-      const kx = cx - ringR + 2;
-      const ky = cy - ringR - 6;
-      fillRoundRect(ctx, kx, ky, 26, 24, 6, '#2e2c33');
-      strokeRoundRect(ctx, kx, ky, 26, 24, 6, item && item.state === COOK_STATE.GOLDEN ? PALETTE.greenBright : PALETTE.brass, 1.3);
-      setFont('700', 13);
-      ctx.fillStyle = PALETTE.creamText;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(bLayout.key, kx + 13, ky + 12.5);
+      // Unified keycap badge (Q / W)
+      drawKeycap(
+        cx - ringR + 2,
+        cy - ringR - 6,
+        26,
+        24,
+        bLayout.key,
+        item && item.state === COOK_STATE.GOLDEN ? '#ffd447' : PALETTE.brass,
+      );
 
-      // Status pill cleanly positioned underneath burner
+      // Status pill cleanly underneath burner
       const pillY = cy + ringR + 18;
       let pillText = 'EMPTY';
       let pillBg = 'rgba(255, 255, 255, 0.06)';
       let pillFg = '#9b96a3';
-      let pillBorder = 'rgba(255, 255, 255, 0.12)';
+      let pillBorder = 'rgba(255, 255, 255, 0.14)';
       if (item) {
         const spec = INGREDIENT_BY_ID[item.id];
         if (item.state === COOK_STATE.GOLDEN) {
           pillText = `GOLDEN ${spec.name.toUpperCase()} — CLICK!`;
-          pillBg = 'rgba(45, 155, 95, 0.28)';
-          pillFg = '#8ef5b8';
-          pillBorder = PALETTE.greenBright;
+          pillBg = 'rgba(45, 155, 95, 0.3)';
+          pillFg = '#fff1a6';
+          pillBorder = '#ffd447';
         } else if (item.state === COOK_STATE.BURNT) {
           pillText = `BURNT ${spec.name.toUpperCase()} — CLEAR`;
-          pillBg = 'rgba(201, 67, 56, 0.3)';
+          pillBg = 'rgba(201, 67, 56, 0.32)';
           pillFg = '#ffa59d';
           pillBorder = PALETTE.crimsonBright;
         } else {
-          pillText = `COOKING ${spec.name.toUpperCase()}…`;
-          pillBg = 'rgba(223, 145, 36, 0.22)';
-          pillFg = '#ffd285';
-          pillBorder = PALETTE.amber;
+          pillText = `HEATING ${spec.name.toUpperCase()}…`;
+          pillBg = 'rgba(223, 210, 188, 0.12)';
+          pillFg = '#ebe0ce';
+          pillBorder = 'rgba(223, 210, 188, 0.45)';
         }
       }
       const pillW = 192;
       fillRoundRect(ctx, cx - pillW / 2, pillY, pillW, 25, 12.5, pillBg);
-      strokeRoundRect(ctx, cx - pillW / 2, pillY, pillW, 25, 12.5, pillBorder, 1.2);
+      strokeRoundRect(ctx, cx - pillW / 2, pillY, pillW, 25, 12.5, pillBorder, 1.3);
       setFont('700', 11.5);
       ctx.fillStyle = pillFg;
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(pillText, cx, pillY + 13);
     }
 
@@ -859,11 +870,12 @@ export function createRenderer(canvas) {
   function drawAssemblyPlate(state, readyMatch) {
     const pz = LAYOUT.plateZone;
     const shakeX = state.plateShake > 0 ? Math.sin(state.plateShake * 55) * 8 * (state.plateShake / 0.4) : 0;
+    const hl = state.serveHighlight;
+    const activeGlow = Boolean(readyMatch || hl);
 
     ctx.save();
     ctx.translate(shakeX, 0);
 
-    // Shadow & dark slate woven chef's placemat
     fillRoundRect(ctx, pz.x + 2, pz.y + 6, pz.w, pz.h, 16, 'rgba(34, 19, 10, 0.3)');
     fillRoundRect(ctx, pz.x, pz.y, pz.w, pz.h, 16, PALETTE.placemat);
     strokeRoundRect(
@@ -873,97 +885,133 @@ export function createRenderer(canvas) {
       pz.w,
       pz.h,
       16,
-      readyMatch ? PALETTE.greenBright : PALETTE.placematTrim,
-      readyMatch ? 2.4 : 1.5,
+      hl ? '#ffd447' : readyMatch ? PALETTE.greenBright : PALETTE.placematTrim,
+      activeGlow ? 2.4 : 1.5,
     );
 
-    // Subtle linen stitch frame inside placemat
     ctx.save();
     ctx.setLineDash([5, 5]);
     strokeRoundRect(ctx, pz.x + 10, pz.y + 10, pz.w - 20, pz.h - 20, 10, 'rgba(232, 224, 210, 0.16)', 1);
     ctx.setLineDash([]);
     ctx.restore();
 
-    // Label top-left
-    setFont('600', 11.5);
-    ctx.fillStyle = '#aeb9bb';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('ASSEMBLY PLATE', pz.x + 22, pz.y + 26);
+    // Header slot: EITHER unified zero-overlap Serve Celebration Banner OR clean Assembly Plate header!
+    if (hl) {
+      const bx = pz.x + 16;
+      const by = pz.y + 12;
+      const bw = pz.w - 32;
+      const bh = 44;
 
-    // Ready-to-serve tag top-right when plate matches an active order cleanly
-    if (readyMatch) {
-      fillRoundRect(ctx, pz.x + pz.w - 146, pz.y + 15, 126, 22, 11, 'rgba(45, 155, 95, 0.3)');
-      strokeRoundRect(ctx, pz.x + pz.w - 146, pz.y + 15, 126, 22, 11, PALETTE.greenBright, 1.2);
-      setFont('700', 11);
-      ctx.fillStyle = '#97f7be';
-      ctx.textAlign = 'center';
-      ctx.fillText('READY TO SERVE', pz.x + pz.w - 83, pz.y + 26.5);
+      fillRoundRect(ctx, bx, by, bw, bh, 12, '#1d3c2b');
+      strokeRoundRect(ctx, bx, by, bw, bh, 12, '#ffd447', 2);
+
+      // Left: Coin + "+NN coins" + subtext ("Perfect · x3 Tip")
+      drawCoin(ctx, bx + 24, by + bh / 2, 11);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      setFont('800', 21);
+      ctx.fillStyle = '#ffec99';
+      const coinTxt = `+${hl.coinsEarned} coins`;
+      ctx.fillText(coinTxt, bx + 42, by + bh / 2 + 0.5);
+
+      const coinW = ctx.measureText(coinTxt).width;
+      const subTxt = hl.subtext || (hl.perfect ? `Perfect · x${hl.comboMult} Tip` : `+${hl.tip} tip`);
+      setFont('600', 12);
+      ctx.fillStyle = '#9ef5c2';
+      ctx.fillText(subTxt, bx + 42 + coinW + 12, by + bh / 2 + 0.5);
+
+      // Right: Cleanly docked inline COMBO badge (zero overflow, zero overlap!)
+      const badgeW = 94;
+      const badgeX = bx + bw - badgeW - 6;
+      const badgeY = by + 6;
+      fillRoundRect(ctx, badgeX, badgeY, badgeW, 32, 16, '#231710');
+      strokeRoundRect(ctx, badgeX, badgeY, badgeW, 32, 16, '#ffd447', 1.8);
+      setFont('800', 11);
+      ctx.fillStyle = '#f5cb69';
+      ctx.textAlign = 'left';
+      ctx.fillText('COMBO', badgeX + 11, badgeY + 16.5);
+      setFont('800', 17);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'right';
+      ctx.fillText(`x${hl.comboMult}`, badgeX + badgeW - 11, badgeY + 16.5);
+    } else {
+      setFont('600', 11.5);
+      ctx.fillStyle = '#b4bfc1';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ASSEMBLY PLATE', pz.x + 22, pz.y + 27);
+
+      if (readyMatch) {
+        fillRoundRect(ctx, pz.x + pz.w - 146, pz.y + 16, 126, 22, 11, 'rgba(45, 155, 95, 0.32)');
+        strokeRoundRect(ctx, pz.x + pz.w - 146, pz.y + 16, 126, 22, 11, PALETTE.greenBright, 1.2);
+        setFont('700', 11);
+        ctx.fillStyle = '#97f7be';
+        ctx.textAlign = 'center';
+        ctx.fillText('READY TO SERVE', pz.x + pz.w - 83, pz.y + 27.5);
+      }
     }
 
-    // Porcelain Chef's Plate
+    // Porcelain Chef's Plate — balanced symmetrically with >=12px air above & below!
     const cx = pz.cx;
-    const cy = pz.cy;
+    const cy = 426;
+    const outerR = 88;
+    const innerR = 70;
 
-    if (readyMatch) {
-      const aura = ctx.createRadialGradient(cx, cy, pz.outerR - 10, cx, cy, pz.outerR + 22);
-      aura.addColorStop(0, 'rgba(71, 199, 126, 0.36)');
+    if (activeGlow) {
+      const aura = ctx.createRadialGradient(cx, cy, outerR - 8, cx, cy, outerR + 22);
+      aura.addColorStop(0, hl ? 'rgba(255, 212, 71, 0.34)' : 'rgba(71, 199, 126, 0.32)');
       aura.addColorStop(1, 'rgba(71, 199, 126, 0)');
       ctx.fillStyle = aura;
       ctx.beginPath();
-      ctx.arc(cx, cy, pz.outerR + 22, 0, Math.PI * 2);
+      ctx.arc(cx, cy, outerR + 22, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Plate shadow
     ctx.fillStyle = 'rgba(10, 14, 15, 0.42)';
     ctx.beginPath();
-    ctx.arc(cx + 3, cy + 7, pz.outerR + 1, 0, Math.PI * 2);
+    ctx.arc(cx + 3, cy + 6, outerR + 1, 0, Math.PI * 2);
     ctx.fill();
 
-    // Outer porcelain rim
-    const plateG = ctx.createRadialGradient(cx - 28, cy - 32, 12, cx, cy, pz.outerR);
+    const plateG = ctx.createRadialGradient(cx - 24, cy - 28, 10, cx, cy, outerR);
     plateG.addColorStop(0, '#ffffff');
     plateG.addColorStop(0.75, PALETTE.porcelain);
     plateG.addColorStop(1, PALETTE.porcelainShade);
     ctx.fillStyle = plateG;
     ctx.beginPath();
-    ctx.arc(cx, cy, pz.outerR, 0, Math.PI * 2);
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#c9bfae';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Fine gold bistro plate trim
     ctx.beginPath();
-    ctx.arc(cx, cy, pz.outerR - 7, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(212, 160, 69, 0.7)';
-    ctx.lineWidth = 1.6;
+    ctx.arc(cx, cy, outerR - 6, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(212, 160, 69, 0.72)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Inner recessed dish well
-    const wellG = ctx.createRadialGradient(cx + 12, cy + 16, 12, cx, cy, pz.innerR);
+    const wellG = ctx.createRadialGradient(cx + 10, cy + 14, 10, cx, cy, innerR);
     wellG.addColorStop(0, '#ffffff');
     wellG.addColorStop(0.85, '#f6f1e8');
     wellG.addColorStop(1, '#e4dbd0');
     ctx.fillStyle = wellG;
     ctx.beginPath();
-    ctx.arc(cx, cy, pz.innerR, 0, Math.PI * 2);
+    ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Plated dish artwork OR calm empty prompt
     if (state.plate.length === 0) {
       setFont('500', 13);
       ctx.fillStyle = '#9c8f7d';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText('Click ingredients or', cx, cy - 8);
       ctx.fillText('burners to plate', cx, cy + 12);
     } else {
-      drawPlatedDish(ctx, state.plate, cx, cy, pz.innerR * 0.94);
+      drawPlatedDish(ctx, state.plate, cx, cy, innerR * 0.96);
     }
 
-    // Ingredient chip strip right below the plate so stacked contents are 100% unambiguous
-    const chipY = pz.y + pz.h - 36;
+    // Ingredient chips cleanly seated 12px below plate and 12px above placemat bottom
+    const chipY = pz.y + pz.h - 34;
     if (state.plate.length > 0) {
       ctx.textBaseline = 'middle';
       setFont('600', 11.5);
@@ -972,16 +1020,16 @@ export function createRenderer(canvas) {
         let tag = '';
         let bg = 'rgba(255, 250, 240, 0.14)';
         let fg = PALETTE.creamText;
-        let bd = 'rgba(255, 250, 240, 0.25)';
+        let bd = 'rgba(255, 250, 240, 0.28)';
         if (spec.cookable) {
           if (it.state === COOK_STATE.GOLDEN) {
             tag = ' ★';
-            bg = 'rgba(45, 155, 95, 0.3)';
-            fg = '#9ff7c4';
-            bd = PALETTE.greenBright;
+            bg = 'rgba(45, 155, 95, 0.34)';
+            fg = '#fff1a6';
+            bd = '#ffd447';
           } else if (it.state === COOK_STATE.BURNT) {
             tag = ' ✕';
-            bg = 'rgba(201, 67, 56, 0.36)';
+            bg = 'rgba(201, 67, 56, 0.38)';
             fg = '#ffb0a8';
             bd = PALETTE.crimsonBright;
           } else {
@@ -1010,6 +1058,7 @@ export function createRenderer(canvas) {
       setFont('500', 11.5);
       ctx.fillStyle = '#8b989a';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText('Plate empty', pz.cx, chipY + 11);
     }
 
@@ -1017,22 +1066,27 @@ export function createRenderer(canvas) {
   }
 
   function drawServiceStation(state, ui, readyMatch) {
-    // 1. Primary SERVE button
     const sb = LAYOUT.serveBtn;
     const hoverServe = ui.hoverId === 'serve';
-    const serveReady = Boolean(readyMatch);
+    const hl = state.serveHighlight;
+    const serveReady = Boolean(readyMatch) && !hl;
 
-    // Shadow
     fillRoundRect(ctx, sb.x + 2, sb.y + 6, sb.w, sb.h, 16, 'rgba(25, 16, 10, 0.34)');
 
     const sg = ctx.createLinearGradient(sb.x, sb.y, sb.x, sb.y + sb.h);
-    if (serveReady) {
+    if (hl) {
+      // Celebratory confirmed state (consistent past tense with SERVED! order card)
+      sg.addColorStop(0, '#2a8f5e');
+      sg.addColorStop(1, '#1b6440');
+    } else if (serveReady) {
       sg.addColorStop(0, hoverServe ? '#34a871' : PALETTE.serveReadyTop);
       sg.addColorStop(1, hoverServe ? '#217d52' : PALETTE.serveReadyBottom);
     } else {
-      sg.addColorStop(0, hoverServe ? '#2a855b' : PALETTE.serveTop);
-      sg.addColorStop(1, hoverServe ? '#1c6342' : PALETTE.serveBottom);
+      // Muted calm inactive state when plate does not match any active order!
+      sg.addColorStop(0, hoverServe ? '#3a4b44' : '#2f3d37');
+      sg.addColorStop(1, hoverServe ? '#2b3933' : '#232e29');
     }
+
     fillRoundRect(ctx, sb.x, sb.y, sb.w, sb.h, 16, sg);
     strokeRoundRect(
       ctx,
@@ -1041,36 +1095,49 @@ export function createRenderer(canvas) {
       sb.w,
       sb.h,
       16,
-      serveReady ? '#ffe285' : hoverServe ? PALETTE.brassBright : 'rgba(212, 160, 69, 0.55)',
-      serveReady ? 2.8 : 1.6,
+      hl || serveReady ? '#ffd447' : hoverServe ? 'rgba(212, 160, 69, 0.55)' : 'rgba(182, 174, 160, 0.25)',
+      hl || serveReady ? 2.6 : 1.4,
+    );
+    strokeRoundRect(
+      ctx,
+      sb.x + 4,
+      sb.y + 4,
+      sb.w - 8,
+      sb.h - 8,
+      12,
+      hl || serveReady ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+      1,
     );
 
-    // Subtle inner highlight
-    strokeRoundRect(ctx, sb.x + 4, sb.y + 4, sb.w - 8, sb.h - 8, 12, 'rgba(255, 255, 255, 0.14)', 1);
-
-    drawServiceCloche(ctx, sb.x + sb.w / 2, sb.y + 64, 34, serveReady);
+    ctx.save();
+    if (!hl && !serveReady) ctx.globalAlpha = 0.55;
+    drawServiceCloche(ctx, sb.x + sb.w / 2, sb.y + 64, 34, Boolean(hl || serveReady));
+    ctx.restore();
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     setFont('800', 26, FONTS.display);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('SERVE', sb.x + sb.w / 2, sb.y + 114);
+    ctx.fillStyle = hl ? '#ffec99' : serveReady ? '#ffffff' : '#b7c4bd';
+    ctx.fillText(hl ? 'SERVED!' : 'SERVE', sb.x + sb.w / 2, sb.y + 112);
 
     setFont('600', 12.5);
-    ctx.fillStyle = serveReady ? '#e6ffef' : 'rgba(230, 245, 236, 0.78)';
+    ctx.fillStyle = hl ? '#d8ffe8' : serveReady ? '#e6ffef' : '#8d9d95';
     ctx.fillText(
-      serveReady ? `Serve ${readyMatch.recipe.shortName}` : 'Match an active order',
+      hl ? `+${hl.coinsEarned} coins earned` : serveReady ? `Serve ${readyMatch.recipe.shortName}` : 'Match an active order',
       sb.x + sb.w / 2,
-      sb.y + 139,
+      sb.y + 137,
     );
 
-    // Keycap badge SPACE
-    fillRoundRect(ctx, sb.x + sb.w / 2 - 34, sb.y + 150, 68, 20, 6, 'rgba(0, 0, 0, 0.25)');
-    setFont('700', 10.5);
-    ctx.fillStyle = '#f8e6b5';
-    ctx.fillText('SPACE', sb.x + sb.w / 2, sb.y + 160.5);
+    drawKeycap(
+      sb.x + sb.w / 2 - 34,
+      sb.y + 149,
+      68,
+      20,
+      'SPACE',
+      hl || serveReady ? '#ffd447' : 'rgba(212, 160, 69, 0.3)',
+    );
 
-    // 2. Secondary TRASH button
+    // Secondary TRASH button
     const tb = LAYOUT.trashBtn;
     const hoverTrash = ui.hoverId === 'trash';
     fillRoundRect(ctx, tb.x + 2, tb.y + 5, tb.w, tb.h, 14, 'rgba(25, 16, 10, 0.3)');
@@ -1098,13 +1165,7 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.creamMuted;
     ctx.fillText('Clear & start fresh', tb.x + 84, tb.y + tb.h / 2 + 12);
 
-    // Keycap T
-    fillRoundRect(ctx, tb.x + tb.w - 38, tb.y + tb.h / 2 - 12, 24, 24, 6, 'rgba(0, 0, 0, 0.28)');
-    strokeRoundRect(ctx, tb.x + tb.w - 38, tb.y + tb.h / 2 - 12, 24, 24, 6, 'rgba(255, 245, 224, 0.25)', 1);
-    setFont('700', 12);
-    ctx.fillStyle = PALETTE.creamText;
-    ctx.textAlign = 'center';
-    ctx.fillText('T', tb.x + tb.w - 26, tb.y + tb.h / 2 + 0.5);
+    drawKeycap(tb.x + tb.w - 38, tb.y + tb.h / 2 - 12, 24, 24, 'T', 'rgba(212, 160, 69, 0.4)');
   }
 
   function drawIngredientStations(state, ui) {
@@ -1118,11 +1179,17 @@ export function createRenderer(canvas) {
       ctx.save();
       ctx.translate(0, dy);
 
-      // Recessed bin shadow
       fillRoundRect(ctx, rect.x, rect.y + 4, rect.w, rect.h, 12, 'rgba(15, 9, 5, 0.45)');
-
-      // Ceramic/enamel prep bin tile
       fillRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, hovered ? '#fffdf8' : spec.tileBg);
+
+      // Full-width crisp top accent band clipped cleanly to the rounded tile top
+      ctx.save();
+      roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, 12);
+      ctx.clip();
+      ctx.fillStyle = spec.accent;
+      ctx.fillRect(rect.x, rect.y, rect.w, 6);
+      ctx.restore();
+
       strokeRoundRect(
         ctx,
         rect.x,
@@ -1130,48 +1197,40 @@ export function createRenderer(canvas) {
         rect.w,
         rect.h,
         12,
-        hovered ? PALETTE.brass : 'rgba(130, 100, 68, 0.42)',
+        hovered ? PALETTE.brass : 'rgba(130, 100, 68, 0.44)',
         hovered ? 2.2 : 1.3,
       );
 
-      // Subtle colored top accent bar matching ingredient identity
-      fillRoundRect(ctx, rect.x + 14, rect.y + 3, rect.w - 28, 3.5, 2, spec.accent);
+      // Unified keycap badge tucked neatly below top accent band
+      drawKeycap(rect.x + 7, rect.y + 11, 21, 20, spec.key, 'rgba(212, 160, 69, 0.45)');
 
-      // Keycap badge (1..0) top-left
-      fillRoundRect(ctx, rect.x + 7, rect.y + 9, 20, 19, 5, '#2c2019');
-      setFont('700', 11.5);
-      ctx.fillStyle = PALETTE.creamText;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(spec.key, rect.x + 17, rect.y + 19);
-
-      // Flame icon top-right ONLY for the 4 cookable ingredients
+      // Flame badge top-right ONLY for the 4 cookable ingredients
       if (spec.cookable) {
-        drawFlame(ctx, rect.x + rect.w - 15, rect.y + 18, 6.5, '#e26220');
+        drawFlame(ctx, rect.x + rect.w - 15, rect.y + 20, 6.5, '#e26220');
       }
 
-      // Custom-drawn ingredient illustration
+      // Station ingredient art (Egg = whole farm eggs, Batter = stoneware batter bowl!)
       drawIngredientIcon(
         ctx,
         spec.id,
-        spec.cookable ? COOK_STATE.RAW : COOK_STATE.READY,
+        spec.id === 'patty' || spec.id === 'noodle' ? COOK_STATE.RAW : COOK_STATE.READY,
         rect.x + rect.w / 2,
-        rect.y + 56,
+        rect.y + 58,
         24,
       );
 
-      // Crisp bottom label bar
       setFont('700', 13.5);
       ctx.fillStyle = PALETTE.inkDark;
       ctx.textAlign = 'center';
-      ctx.fillText(spec.name, rect.x + rect.w / 2, rect.y + rect.h - 15);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(spec.name, rect.x + rect.w / 2, rect.y + rect.h - 14);
 
       ctx.restore();
     }
   }
 
   function drawEffects(state) {
-    // Sparkle particles
+    // Sparkle particles (stay outside plate perimeter)
     for (let i = 0; i < state.particles.length; i += 1) {
       const pt = state.particles[i];
       const alpha = Math.max(0, 1 - pt.age / pt.life);
@@ -1190,7 +1249,7 @@ export function createRenderer(canvas) {
       ctx.restore();
     }
 
-    // Floating tip / serve / strike popups
+    // Floating popups (used for strikes or standalone messages)
     for (let i = 0; i < state.popups.length; i += 1) {
       const p = state.popups[i];
       const alpha = Math.min(1, Math.max(0, 1 - Math.max(0, p.age - p.life * 0.55) / (p.life * 0.45)));
@@ -1198,57 +1257,31 @@ export function createRenderer(canvas) {
       ctx.globalAlpha = alpha;
 
       const isGold = p.tone === 'gold';
-      const w = isGold ? 228 : 186;
-      const h = p.subtext ? 62 : 40;
+      const w = isGold ? 216 : 186;
+      const h = p.subtext ? 56 : 38;
       const px = p.x - w / 2;
       const py = p.y - h / 2;
 
       fillRoundRect(ctx, px + 2, py + 5, w, h, 14, 'rgba(20, 12, 8, 0.36)');
-      fillRoundRect(ctx, px, py, w, h, 14, isGold ? '#223f2e' : '#581f1b');
-      strokeRoundRect(ctx, px, py, w, h, 14, isGold ? PALETTE.brassBright : PALETTE.crimsonBright, 2.2);
+      fillRoundRect(ctx, px, py, w, h, 14, isGold ? '#1d3c2b' : '#581f1b');
+      strokeRoundRect(ctx, px, py, w, h, 14, isGold ? '#ffd447' : PALETTE.crimsonBright, 2.2);
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      if (isGold) {
-        drawCoin(ctx, px + 30, py + (p.subtext ? 24 : 20), 12);
-        setFont('800', 24);
-        ctx.fillStyle = '#ffe98c';
-        ctx.fillText(p.text, p.x + 14, py + (p.subtext ? 25 : 21));
-      } else {
-        setFont('800', 20);
-        ctx.fillStyle = '#ffc1b9';
-        ctx.fillText(p.text, p.x, py + (p.subtext ? 23 : 20));
-      }
+      setFont('800', 19);
+      ctx.fillStyle = isGold ? '#ffe98c' : '#ffc1b9';
+      ctx.fillText(p.text, p.x, py + (p.subtext ? 21 : 19));
 
       if (p.subtext) {
-        setFont('700', 12.5);
+        setFont('700', 12);
         ctx.fillStyle = isGold ? '#9ef5c2' : '#f7d5d0';
-        ctx.fillText(p.subtext, p.x, py + 47);
+        ctx.fillText(p.subtext, p.x, py + 41);
       }
-      ctx.restore();
-    }
-
-    // Staged/live prominent Combo x3 Celebration Badge beside the serve popup when combo >= 2
-    if (state.serveHighlight && state.serveHighlight.comboMult >= 2) {
-      const hl = state.serveHighlight;
-      const bx = 918;
-      const by = 290;
-      ctx.save();
-      fillRoundRect(ctx, bx - 64, by - 26, 128, 52, 26, 'rgba(26, 18, 12, 0.92)');
-      strokeRoundRect(ctx, bx - 64, by - 26, 128, 52, 26, '#ffe078', 2.4);
-      setFont('800', 12);
-      ctx.fillStyle = '#f5cb69';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('COMBO', bx, by - 9);
-      setFont('800', 22);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(`x${hl.comboMult}`, bx, by + 11);
       ctx.restore();
     }
   }
 
-  function drawActionButton(rect, label, primary, hovered) {
+  function drawActionButton(rect, label, primary, hovered, keyHint = null) {
     ctx.save();
     fillRoundRect(ctx, rect.x + 2, rect.y + 4, rect.w, rect.h, 12, 'rgba(18, 11, 7, 0.35)');
     if (primary) {
@@ -1266,136 +1299,173 @@ export function createRenderer(canvas) {
     setFont('700', 18);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5);
+    const textX = keyHint ? rect.x + rect.w / 2 - 28 : rect.x + rect.w / 2;
+    ctx.fillText(label, textX, rect.y + rect.h / 2 + 0.5);
+
+    if (keyHint) {
+      drawKeycap(rect.x + rect.w - 76, rect.y + rect.h / 2 - 11, 58, 22, keyHint, 'rgba(255, 232, 150, 0.55)');
+    }
     ctx.restore();
   }
 
   function drawTitleOverlay(ui) {
-    // Gentle warm vignette — keeps kitchen counter, stations, and order board clearly visible around the poster card!
-    const vig = ctx.createRadialGradient(STAGE.width / 2, STAGE.height / 2, 220, STAGE.width / 2, STAGE.height / 2, 740);
-    vig.addColorStop(0, 'rgba(28, 18, 12, 0.42)');
-    vig.addColorStop(1, 'rgba(20, 12, 8, 0.58)');
+    // Rich darkened vignette framing the kitchen cleanly behind the poster cover
+    const vig = ctx.createRadialGradient(STAGE.width / 2, STAGE.height / 2, 200, STAGE.width / 2, STAGE.height / 2, 760);
+    vig.addColorStop(0, 'rgba(22, 14, 9, 0.54)');
+    vig.addColorStop(1, 'rgba(14, 8, 5, 0.74)');
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, STAGE.width, STAGE.height);
 
-    // Centered poster title panel leaving top order rail & bottom 10 stations framing the screen
-    const px = 250;
-    const py = 122;
-    const pw = 780;
-    const ph = 468;
+    // Lifted poster cover card (28px clean breathing room above bottom station tray!)
+    const px = 230;
+    const py = 94;
+    const pw = 820;
+    const ph = 462;
 
-    fillRoundRect(ctx, px + 4, py + 12, pw, ph, 22, 'rgba(12, 7, 4, 0.48)');
+    fillRoundRect(ctx, px + 4, py + 12, pw, ph, 22, 'rgba(10, 5, 3, 0.52)');
     const cardG = ctx.createLinearGradient(px, py, px, py + ph);
-    cardG.addColorStop(0, '#fdf6e8');
-    cardG.addColorStop(1, '#f4e6ce');
+    cardG.addColorStop(0, '#fdf6e7');
+    cardG.addColorStop(1, '#f3e4ca');
     fillRoundRect(ctx, px, py, pw, ph, 22, cardG);
     strokeRoundRect(ctx, px, py, pw, ph, 22, PALETTE.brass, 3);
-    strokeRoundRect(ctx, px + 8, py + 8, pw - 16, ph - 16, 16, 'rgba(166, 118, 42, 0.35)', 1.2);
+    strokeRoundRect(ctx, px + 8, py + 8, pw - 16, ph - 16, 16, 'rgba(166, 118, 42, 0.38)', 1.2);
 
-    // Header: Crest + Title + Tagline
-    drawLadleCrest(ctx, STAGE.width / 2, py + 48, 30);
+    // Decorative bistro poster crest with flanking brass flourishes
+    const crestY = py + 48;
+    ctx.strokeStyle = 'rgba(182, 130, 48, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px + 96, crestY);
+    ctx.lineTo(STAGE.width / 2 - 50, crestY);
+    ctx.moveTo(STAGE.width / 2 + 50, crestY);
+    ctx.lineTo(px + pw - 96, crestY);
+    ctx.stroke();
+    for (const dx of [STAGE.width / 2 - 52, STAGE.width / 2 + 52]) {
+      ctx.fillStyle = PALETTE.brass;
+      ctx.beginPath();
+      ctx.arc(dx, crestY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawLadleCrest(ctx, STAGE.width / 2, crestY, 32);
+
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     setFont('700', 42, FONTS.display);
     ctx.fillStyle = PALETTE.inkDark;
     ctx.fillText('THE GOLDEN LADLE', STAGE.width / 2, py + 104);
 
-    setFont('500', 15.5);
+    setFont('500', 15);
     ctx.fillStyle = PALETTE.inkMid;
     ctx.fillText(
-      'Cook to the green golden window, plate each recipe cleanly, and serve before patience runs out.',
+      'Cook to the golden zone, plate each recipe cleanly, and serve before patience runs out.',
       STAGE.width / 2,
-      py + 136,
+      py + 134,
     );
 
-    // Compact How-to-Play Menu Panel listing all 5 recipes
-    const mx = px + 34;
-    const my = py + 158;
-    const mw = pw - 68;
-    const mh = 204;
+    // Balanced 5-Recipe Menu Box (3 cards top row, 2 centered bottom row, full-width goal footer strip!)
+    const mx = px + 30;
+    const my = py + 154;
+    const mw = pw - 60;
+    const mh = 224;
     fillRoundRect(ctx, mx, my, mw, mh, 14, '#fffaf1');
     strokeRoundRect(ctx, mx, my, mw, mh, 14, '#dbc7a6', 1.3);
 
-    setFont('700', 13);
+    setFont('700', 12.5);
     ctx.fillStyle = '#8b5c1a';
     ctx.textAlign = 'left';
-    ctx.fillText('KITCHEN MENU — 5 RECIPES', mx + 18, my + 21);
+    ctx.fillText('KITCHEN MENU — 5 RECIPES', mx + 18, my + 20);
 
+    // Crisp visual legend matching exact flame glyph used on recipe cards (no unexplained asterisks!)
     setFont('500', 12);
+    const legendText = '= cook to golden on Burner 1/2 (Q/W)';
+    const legendW = ctx.measureText(legendText).width;
+    drawFlame(ctx, mx + mw - 18 - legendW - 11, my + 20, 5.5, '#e26220');
     ctx.fillStyle = PALETTE.inkMid;
     ctx.textAlign = 'right';
-    ctx.fillText('Flame icon = cook to golden on Burner 1/2 (Q/W)', mx + mw - 18, my + 21);
+    ctx.fillText(legendText, mx + mw - 18, my + 20);
 
-    // Draw 5 recipes in a crisp 2-column grid (3 left, 2 right + Shift Rules card bottom-right!)
-    const colW = (mw - 48) / 2;
-    const rowH = 50;
-    for (let i = 0; i < RECIPES.length; i += 1) {
-      const recipe = RECIPES[i];
-      const col = i < 3 ? 0 : 1;
-      const row = i < 3 ? i : i - 3;
-      const rx = mx + 16 + col * (colW + 16);
-      const ry = my + 38 + row * (rowH + 6);
+    const drawRecipeMiniCard = (recipe, rx, ry, rw, rh) => {
+      fillRoundRect(ctx, rx, ry, rw, rh, 10, '#f8efe0');
+      strokeRoundRect(ctx, rx, ry, rw, rh, 10, '#e2d0b2', 1);
 
-      fillRoundRect(ctx, rx, ry, colW, rowH, 10, '#f8efe0');
-      strokeRoundRect(ctx, rx, ry, colW, rowH, 10, '#e3d2b6', 1);
-
-      setFont('700', 14, FONTS.display);
+      setFont('700', 13.5, FONTS.display);
       ctx.fillStyle = PALETTE.inkDark;
       ctx.textAlign = 'left';
-      ctx.fillText(recipe.name, rx + 12, ry + 18);
+      ctx.fillText(recipe.name, rx + 12, ry + 17);
 
-      // Step ingredients text + mini drawn icons on right
-      const ingText = recipe.steps
-        .map((s) => `${INGREDIENT_BY_ID[s.id].name}${s.cooked ? '*' : ''}`)
-        .join(' + ');
-      setFont('500', 11.5);
-      ctx.fillStyle = PALETTE.inkMid;
-      ctx.fillText(ingText, rx + 12, ry + 36);
+      // Price chip top-right
+      setFont('700', 12);
+      ctx.fillStyle = '#8f5d14';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${recipe.price}c`, rx + rw - 11, ry + 17);
 
-      // Mini drawn icons on the right half of the row
-      const iconCount = recipe.steps.length;
-      const startIx = rx + colW - 18 - (iconCount - 1) * 26;
-      for (let s = 0; s < iconCount; s += 1) {
-        const st = recipe.steps[s];
-        const ix = startIx + s * 26;
+      // Drawn ingredient icons cleanly spaced along bottom half of card
+      const steps = recipe.steps;
+      const stepSpacing = 44;
+      const startIx = rx + 26;
+      for (let s = 0; s < steps.length; s += 1) {
+        const st = steps[s];
+        const ix = startIx + s * stepSpacing;
+        const iy = ry + 45;
         drawIngredientIcon(
           ctx,
           st.id,
           st.cooked ? COOK_STATE.GOLDEN : COOK_STATE.READY,
           ix,
-          ry + 25,
-          10.5,
+          iy,
+          12.5,
         );
-        if (st.cooked) drawFlame(ctx, ix + 8, ry + 12, 3.6, '#e26220');
+        if (st.cooked) {
+          drawFlame(ctx, ix + 11, iy - 10, 4.4, '#e26220');
+        }
+        if (s < steps.length - 1) {
+          setFont('700', 12);
+          ctx.fillStyle = '#b49c7e';
+          ctx.textAlign = 'center';
+          ctx.fillText('+', ix + stepSpacing / 2, iy);
+        }
       }
+    };
+
+    // Row 1: 3 recipes across full width
+    const row1W = 232;
+    const rowGap = 14;
+    const row1StartX = mx + (mw - (3 * row1W + 2 * rowGap)) / 2;
+    for (let i = 0; i < 3; i += 1) {
+      drawRecipeMiniCard(RECIPES[i], row1StartX + i * (row1W + rowGap), my + 34, row1W, 66);
     }
 
-    // Bottom-right 6th slot inside the menu box: Shift Rules & Controls summary
-    const ruleX = mx + 16 + (colW + 16);
-    const ruleY = my + 38 + 2 * (rowH + 6);
-    fillRoundRect(ctx, ruleX, ruleY, colW, rowH, 10, '#2c2019');
-    strokeRoundRect(ctx, ruleX, ruleY, colW, rowH, 10, PALETTE.brass, 1.2);
-    setFont('700', 12.5);
-    ctx.fillStyle = PALETTE.brassBright;
-    ctx.textAlign = 'left';
-    ctx.fillText('GOAL: 130 coins in 2:30 (180 / 240 for 2-3 stars)', ruleX + 12, ruleY + 18);
-    setFont('500', 11.5);
-    ctx.fillStyle = PALETTE.creamText;
-    ctx.fillText('Keys: 1-0 Stations · Q/W Burners · Space Serve · T Trash', ruleX + 12, ruleY + 36);
+    // Row 2: 2 recipes centered symmetrically
+    const row2W = 286;
+    const row2StartX = mx + (mw - (2 * row2W + rowGap)) / 2;
+    drawRecipeMiniCard(RECIPES[3], row2StartX, my + 108, row2W, 66);
+    drawRecipeMiniCard(RECIPES[4], row2StartX + row2W + rowGap, my + 108, row2W, 66);
 
-    // Primary Start button
-    drawActionButton(OVERLAY_RECTS.titleStart, 'Click or Press Space to Start', true, ui.hoverId === 'title-start');
+    // Balanced full-width soft warm footer strip for shift goal & controls
+    const fy = my + 184;
+    fillRoundRect(ctx, mx + 16, fy, mw - 32, 28, 8, '#efe1c6');
+    strokeRoundRect(ctx, mx + 16, fy, mw - 32, 28, 8, '#d8c096', 1);
+    setFont('600', 12);
+    ctx.fillStyle = PALETTE.inkDark;
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      'Goal: 130 coins in 2:30 (180 / 240 for 2–3 stars)   ·   3 strikes ends shift   ·   Keys: 1-0, Q/W, Space, T, P',
+      mx + mw / 2,
+      fy + 14.5,
+    );
+
+    drawActionButton(OVERLAY_RECTS.titleStart, 'Click to Start', true, ui.hoverId === 'title-start', 'SPACE');
   }
 
   function drawPauseOverlay(ui) {
-    ctx.fillStyle = 'rgba(20, 12, 8, 0.64)';
+    ctx.fillStyle = 'rgba(18, 11, 7, 0.7)';
     ctx.fillRect(0, 0, STAGE.width, STAGE.height);
 
     const px = 410;
-    const py = 200;
+    const py = 196;
     const pw = 460;
-    const ph = 318;
-    fillRoundRect(ctx, px + 4, py + 10, pw, ph, 20, 'rgba(0, 0, 0, 0.4)');
+    const ph = 316;
+    fillRoundRect(ctx, px + 4, py + 10, pw, ph, 20, 'rgba(0, 0, 0, 0.44)');
     fillRoundRect(ctx, px, py, pw, ph, 20, '#fbf3e4');
     strokeRoundRect(ctx, px, py, pw, ph, 20, PALETTE.brass, 2.5);
 
@@ -1403,69 +1473,71 @@ export function createRenderer(canvas) {
     ctx.textBaseline = 'middle';
     setFont('700', 34, FONTS.display);
     ctx.fillStyle = PALETTE.inkDark;
-    ctx.fillText('Kitchen Paused', STAGE.width / 2, py + 62);
+    ctx.fillText('Kitchen Paused', STAGE.width / 2, py + 60);
 
     setFont('500', 15);
     ctx.fillStyle = PALETTE.inkMid;
-    ctx.fillText('Burners and order timers are held safely.', STAGE.width / 2, py + 104);
-    ctx.fillText('Press P or Esc to jump right back in.', STAGE.width / 2, py + 128);
+    ctx.fillText('Burners and order timers are held safely.', STAGE.width / 2, py + 102);
+    ctx.fillText('Press P or Esc to jump right back in.', STAGE.width / 2, py + 126);
 
     drawActionButton(OVERLAY_RECTS.pauseResume, 'Resume Shift', true, ui.hoverId === 'pause-resume');
     drawActionButton(OVERLAY_RECTS.pauseRestart, 'Restart Shift', false, ui.hoverId === 'pause-restart');
   }
 
   function drawEndOverlay(state, ui, won) {
-    ctx.fillStyle = 'rgba(22, 14, 9, 0.68)';
+    const vig = ctx.createRadialGradient(STAGE.width / 2, STAGE.height / 2, 180, STAGE.width / 2, STAGE.height / 2, 740);
+    vig.addColorStop(0, 'rgba(20, 12, 8, 0.62)');
+    vig.addColorStop(1, 'rgba(12, 7, 4, 0.8)');
+    ctx.fillStyle = vig;
     ctx.fillRect(0, 0, STAGE.width, STAGE.height);
 
+    // Lifted symmetrically with 30px clean clearance above bottom station tray
     const px = 340;
-    const py = 126;
+    const py = 104;
     const pw = 600;
-    const ph = 456;
+    const ph = 450;
 
-    fillRoundRect(ctx, px + 4, py + 12, pw, ph, 22, 'rgba(0, 0, 0, 0.45)');
+    fillRoundRect(ctx, px + 4, py + 12, pw, ph, 22, 'rgba(0, 0, 0, 0.48)');
     const bg = ctx.createLinearGradient(px, py, px, py + ph);
     bg.addColorStop(0, '#fdf6e8');
     bg.addColorStop(1, '#f3e4ca');
     fillRoundRect(ctx, px, py, pw, ph, 22, bg);
     strokeRoundRect(ctx, px, py, pw, ph, 22, won ? PALETTE.brass : PALETTE.crimson, 3);
-    strokeRoundRect(ctx, px + 8, py + 8, pw - 16, ph - 16, 16, 'rgba(166, 118, 42, 0.3)', 1.2);
+    strokeRoundRect(ctx, px + 8, py + 8, pw - 16, ph - 16, 16, 'rgba(166, 118, 42, 0.32)', 1.2);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     if (won) {
       const stars = getStarsForCoins(state.coins);
-      // 3 Gleaming Stars
-      drawStar(ctx, STAGE.width / 2 - 74, py + 64, 28, stars >= 1);
-      drawStar(ctx, STAGE.width / 2, py + 54, 34, stars >= 2);
-      drawStar(ctx, STAGE.width / 2 + 74, py + 64, 28, stars >= 3);
+      drawStar(ctx, STAGE.width / 2 - 74, py + 62, 28, stars >= 1);
+      drawStar(ctx, STAGE.width / 2, py + 52, 34, stars >= 2);
+      drawStar(ctx, STAGE.width / 2 + 74, py + 62, 28, stars >= 3);
 
       setFont('700', 36, FONTS.display);
       ctx.fillStyle = PALETTE.inkDark;
-      ctx.fillText('Shift Complete!', STAGE.width / 2, py + 124);
+      ctx.fillText('Shift Complete!', STAGE.width / 2, py + 122);
 
       const rating =
         stars === 3 ? 'Three-Star Golden Service' : stars === 2 ? 'Two-Star Rush Mastery' : 'One-Star Shift Cleared';
       setFont('600', 15);
       ctx.fillStyle = PALETTE.green;
-      ctx.fillText(rating, STAGE.width / 2, py + 156);
+      ctx.fillText(rating, STAGE.width / 2, py + 152);
     } else {
-      // Failed strike emblem
       for (let s = 0; s < RULES.maxStrikes; s += 1) {
-        drawStrikeMark(ctx, STAGE.width / 2 + (s - 1) * 52, py + 62, 19, s < state.strikes);
+        drawStrikeMark(ctx, STAGE.width / 2 + (s - 1) * 52, py + 60, 19, s < state.strikes);
       }
 
       setFont('700', 36, FONTS.display);
       ctx.fillStyle = PALETTE.crimson;
-      ctx.fillText('Shift Failed', STAGE.width / 2, py + 124);
+      ctx.fillText('Shift Failed', STAGE.width / 2, py + 122);
 
       setFont('600', 15);
       ctx.fillStyle = PALETTE.inkMid;
-      ctx.fillText(state.failReason || 'Three strikes ended the shift.', STAGE.width / 2, py + 156);
+      ctx.fillText(state.failReason || 'Three strikes ended the shift.', STAGE.width / 2, py + 152);
     }
 
-    // 4-tile Stats Grid (Coins Earned, Dishes Served, Perfect Dishes, Best Combo)
+    // 2x2 Stats Grid (x = 376..904, aligned pixel-for-pixel with buttons below!)
     const stats = [
       { label: 'Coins Earned', value: `${state.coins}`, note: `Goal ${RULES.coinGoal}`, accent: '#b87b16', coin: true },
       { label: 'Dishes Served', value: `${state.servedCount}`, note: 'Orders plated', accent: PALETTE.green, coin: false },
@@ -1479,8 +1551,8 @@ export function createRenderer(canvas) {
       },
     ];
 
-    const gx = px + 36;
-    const gy = py + 184;
+    const gx = px + 36; // 376
+    const gy = py + 180;
     const tileW = 256;
     const tileH = 74;
     const gap = 16;
@@ -1525,6 +1597,7 @@ export function createRenderer(canvas) {
     const state = world.state;
     const readyCandidate = world.findMatchingOrder();
     const readyMatch = readyCandidate && readyCandidate.evaluation.ok ? readyCandidate : null;
+    const isModalOpen = ui.screen !== SCREEN.PLAY;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = PALETTE.backdrop;
@@ -1535,7 +1608,7 @@ export function createRenderer(canvas) {
     drawKitchenBackdrop();
     drawHud(state, ui);
     drawOrderBoard(state);
-    drawHintBar(world.getHint());
+    drawHintBar(world.getHint(), isModalOpen);
     drawStoveRange(state, ui);
     drawAssemblyPlate(state, readyMatch);
     drawServiceStation(state, ui, readyMatch);
