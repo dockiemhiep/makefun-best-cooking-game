@@ -109,20 +109,21 @@ export function createWorld(random) {
   function spawnSparkles(cx, cy, count, palette = 'gold') {
     const colors =
       palette === 'gold'
-        ? ['#f5cf6b', '#fff1b5', '#47c77e', '#e8a825']
+        ? ['#ffe584', '#fff6c4', '#47c77e', '#f1b943']
         : ['#d4a045', '#fff4cf', '#ffffff'];
     for (let i = 0; i < count; i += 1) {
-      const angle = (Math.PI * 2 * i) / count + (random() - 0.5) * 0.45;
-      const speed = 55 + random() * 115;
+      const angle = (Math.PI * 2 * i) / count + (random() - 0.5) * 0.35;
+      const dist = 98 + random() * 24;
+      const speed = 32 + random() * 68;
       state.particles.push({
-        x: cx + (random() - 0.5) * 26,
-        y: cy + (random() - 0.5) * 20,
+        x: cx + Math.cos(angle) * dist,
+        y: cy + Math.sin(angle) * dist * 0.76,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 45,
-        size: 3 + random() * 4,
+        vy: Math.sin(angle) * speed - 22,
+        size: 4 + random() * 2.5,
         color: colors[i % colors.length],
         age: 0,
-        life: 0.65 + random() * 0.45,
+        life: 0.7 + random() * 0.4,
       });
     }
   }
@@ -263,6 +264,7 @@ export function createWorld(random) {
       return EVT.ERROR;
     }
 
+    state.serveHighlight = null;
     state.plate.push({ id: spec.id, state: COOK_STATE.READY });
     return EVT.CLICK;
   }
@@ -289,6 +291,7 @@ export function createWorld(random) {
 
     const item = burner.item;
     const spec = INGREDIENT_BY_ID[item.id];
+    state.serveHighlight = null;
     state.plate.push({ id: item.id, state: item.state });
     burner.item = null;
     burner.sizzleAccum = 0;
@@ -364,8 +367,21 @@ export function createWorld(random) {
       state.servedCount += 1;
       if (perfect) state.perfectCount += 1;
 
+      const subParts = [];
+      if (perfect) subParts.push('Perfect');
+      if (comboMult > 1) subParts.push(`x${comboMult} Tip`);
+      else subParts.push(`+${tip} tip`);
+
+      // Snapshot served dish + order card so live play renders the SERVED! moment for 1.5s
       state.serveHighlight = {
         slotIndex: index,
+        orderSnapshot: {
+          id: order.id,
+          recipeId: order.recipeId,
+          patience: order.patience,
+          maxPatience: order.maxPatience,
+        },
+        plateSnapshot: state.plate.map((it) => ({ id: it.id, state: it.state })),
         recipeId: recipe.id,
         recipeName: recipe.name,
         coinsEarned: totalEarned,
@@ -375,6 +391,7 @@ export function createWorld(random) {
         comboMult,
         combo: state.combo,
         perfect,
+        subtext: subParts.join(' · '),
         timer: 1.5,
       };
 
@@ -384,12 +401,7 @@ export function createWorld(random) {
         state.nextSpawnIn = Math.min(state.nextSpawnIn, RULES.emptyBoardRespawn);
       }
 
-      const subParts = [];
-      if (perfect) subParts.push('Perfect');
-      if (comboMult > 1) subParts.push(`x${comboMult} Tip`);
-      else subParts.push(`+${tip} tip`);
-      state.serveHighlight.subtext = subParts.join(' · ');
-      spawnSparkles(740, 424, 16, 'gold');
+      spawnSparkles(740, 426, 12, 'gold');
 
       setHintOverride(
         `Served ${recipe.name}! +${totalEarned} coins${comboMult > 1 ? ` (x${comboMult} combo!)` : ''}`,
@@ -433,39 +445,22 @@ export function createWorld(random) {
     return EVT.ERROR;
   }
 
-  /** Contextual one-line guidance teaching the loop whenever no explicit feedback message is active. */
+  /**
+   * Contextual one-line guidance teaching the loop whenever no explicit feedback message is active.
+   * Priority:
+   *   (a) Plate complete and matches an active order -> hint Serve
+   *   (b) Plate partially matches an active order -> hint its missing ingredient(s)
+   *       (only suggesting a golden burner item if it is actually a missing step of that target recipe)
+   *   (c) Empty plate + golden burner item that starts an active order's recipe -> suggest collecting it
+   *   (d) Burning warnings on burners
+   *   (e) Generic next step for the frontmost active order
+   */
   function getHint() {
     if (state.hintOverride) {
       return { text: state.hintOverride.text, tone: state.hintOverride.tone };
     }
 
-    // 1. Urgent burnt or golden burner states
-    for (let i = 0; i < state.burners.length; i += 1) {
-      const item = state.burners[i].item;
-      if (!item) continue;
-      const spec = INGREDIENT_BY_ID[item.id];
-      const key = i === 0 ? 'Q' : 'W';
-      if (item.state === COOK_STATE.BURNT) {
-        return {
-          text: `The ${spec.name.toLowerCase()} on Burner ${i + 1} is burnt — click it (${key}) then trash (T).`,
-          tone: 'error',
-        };
-      }
-    }
-    for (let i = 0; i < state.burners.length; i += 1) {
-      const item = state.burners[i].item;
-      if (!item) continue;
-      const spec = INGREDIENT_BY_ID[item.id];
-      const key = i === 0 ? 'Q' : 'W';
-      if (item.state === COOK_STATE.GOLDEN) {
-        return {
-          text: `The ${spec.name.toLowerCase()} is golden — click Burner ${i + 1} (${key}) to plate it!`,
-          tone: 'good',
-        };
-      }
-    }
-
-    // 2. Check if plate has a spoiled/raw item
+    // Spoiled cookable item already on the plate must be trashed before anything can be served
     for (let i = 0; i < state.plate.length; i += 1) {
       const item = state.plate[i];
       const spec = INGREDIENT_BY_ID[item.id];
@@ -484,7 +479,7 @@ export function createWorld(random) {
       }
     }
 
-    // 3. Plate ready to serve!
+    // (a) Plate complete and matches an active order -> hint Serve
     const readyMatch = findMatchingOrder(state.plate);
     if (readyMatch && readyMatch.evaluation.ok) {
       return {
@@ -493,36 +488,26 @@ export function createWorld(random) {
       };
     }
 
-    // 4. Guide the next step for the best-matching active order
-    if (state.orders.length === 0) {
-      return { text: 'Fresh order ticket arriving — get ready at the counter!', tone: 'info' };
-    }
+    // Helper: guide the next missing step of `targetRecipe` given current plate and burners
+    function hintMissingStep(targetRecipe) {
+      const missing = missingStepsForRecipe(state.plate, targetRecipe);
+      if (missing.length === 0) return null;
 
-    let targetOrder = state.orders[0];
-    let targetRecipe = RECIPE_BY_ID[targetOrder.recipeId];
-    if (state.plate.length > 0) {
-      let best = null;
-      for (let i = 0; i < state.orders.length; i += 1) {
-        const ord = state.orders[i];
-        const rec = RECIPE_BY_ID[ord.recipeId];
-        if (!isPlateSubsetOfRecipe(state.plate, rec)) continue;
-        const rem = missingStepsForRecipe(state.plate, rec).length;
-        if (best === null || rem < best.rem) best = { ord, rec, rem };
+      // (c-inline) If a golden burner item is actually needed by this target recipe, suggest collecting it now
+      for (let i = 0; i < state.burners.length; i += 1) {
+        const item = state.burners[i].item;
+        if (!item || item.state !== COOK_STATE.GOLDEN) continue;
+        if (missing.some((s) => s.cooked && s.id === item.id)) {
+          const spec = INGREDIENT_BY_ID[item.id];
+          const key = i === 0 ? 'Q' : 'W';
+          return {
+            text: `The ${spec.name.toLowerCase()} is golden — click Burner ${i + 1} (${key}) to plate it!`,
+            tone: 'good',
+          };
+        }
       }
-      if (best) {
-        targetOrder = best.ord;
-        targetRecipe = best.rec;
-      } else {
-        return {
-          text: 'Plate ingredients do not fit an open order — click Trash (T) to clear it.',
-          tone: 'warn',
-        };
-      }
-    }
 
-    const missing = missingStepsForRecipe(state.plate, targetRecipe);
-    if (missing.length > 0) {
-      // Account for items already cooking on burners so we don't tell the player to cook a duplicate
+      // Account for items already cooking (raw) on burners so we do not suggest cooking a duplicate
       const cookingCounts = Object.create(null);
       for (let i = 0; i < state.burners.length; i += 1) {
         const it = state.burners[i].item;
@@ -547,7 +532,6 @@ export function createWorld(random) {
         };
       }
 
-      // Prioritize starting cookable items first if a burner is free, else guide first missing step
       const freeBurner = state.burners.some((b) => b.item === null);
       const nextStep =
         (freeBurner && unstarted.find((s) => s.cooked)) ||
@@ -567,7 +551,73 @@ export function createWorld(random) {
       };
     }
 
-    return { text: 'Click an ingredient (1-0) to start cooking.', tone: 'info' };
+    // (b) Plate partially matches an active order -> hint missing ingredient(s) for that order
+    if (state.plate.length > 0) {
+      let best = null;
+      for (let i = 0; i < state.orders.length; i += 1) {
+        const ord = state.orders[i];
+        const rec = RECIPE_BY_ID[ord.recipeId];
+        if (!isPlateSubsetOfRecipe(state.plate, rec)) continue;
+        const rem = missingStepsForRecipe(state.plate, rec).length;
+        if (best === null || rem < best.rem || (rem === best.rem && ord.patience < best.ord.patience)) {
+          best = { ord, rec, rem };
+        }
+      }
+      if (!best) {
+        return {
+          text: 'Plate ingredients do not fit an open order — click Trash (T) to clear it.',
+          tone: 'warn',
+        };
+      }
+      const stepHint = hintMissingStep(best.rec);
+      if (stepHint) return stepHint;
+    }
+
+    // (c) Empty plate: suggest a golden burner item ONLY if it starts an active order's recipe
+    if (state.plate.length === 0) {
+      for (let i = 0; i < state.burners.length; i += 1) {
+        const item = state.burners[i].item;
+        if (!item || item.state !== COOK_STATE.GOLDEN) continue;
+        const neededByActiveOrder = state.orders.some((ord) =>
+          RECIPE_BY_ID[ord.recipeId].steps.some((s) => s.cooked && s.id === item.id),
+        );
+        if (neededByActiveOrder) {
+          const spec = INGREDIENT_BY_ID[item.id];
+          const key = i === 0 ? 'Q' : 'W';
+          return {
+            text: `The ${spec.name.toLowerCase()} is golden — click Burner ${i + 1} (${key}) to plate it!`,
+            tone: 'good',
+          };
+        }
+      }
+    }
+
+    // (d) Burning warnings on burners
+    for (let i = 0; i < state.burners.length; i += 1) {
+      const item = state.burners[i].item;
+      if (!item) continue;
+      const spec = INGREDIENT_BY_ID[item.id];
+      const key = i === 0 ? 'Q' : 'W';
+      if (item.state === COOK_STATE.BURNT) {
+        return {
+          text: `The ${spec.name.toLowerCase()} on Burner ${i + 1} is burnt — click it (${key}) then trash (T).`,
+          tone: 'error',
+        };
+      }
+      if (item.state === COOK_STATE.GOLDEN && item.progress >= 0.72) {
+        return {
+          text: `The ${spec.name.toLowerCase()} on Burner ${i + 1} (${key}) is about to burn — clear it soon!`,
+          tone: 'warn',
+        };
+      }
+    }
+
+    // (e) Generic next step for the frontmost active order
+    if (state.orders.length === 0) {
+      return { text: 'Fresh order ticket arriving — get ready at the counter!', tone: 'info' };
+    }
+    const nextHint = hintMissingStep(RECIPE_BY_ID[state.orders[0].recipeId]);
+    return nextHint || { text: 'Click an ingredient (1-0) to start cooking.', tone: 'info' };
   }
 
   function step(dt) {
@@ -679,8 +729,9 @@ export function createWorld(random) {
       }
     }
 
-    // Spawn new orders up to 3 active
-    if (state.orders.length < RULES.maxOrders) {
+    // Spawn new orders up to 3 visible slots (respecting any active SERVED! snapshot card)
+    const visibleSlots = state.orders.length + (state.serveHighlight && state.serveHighlight.orderSnapshot ? 1 : 0);
+    if (visibleSlots < RULES.maxOrders) {
       state.nextSpawnIn -= dt;
       if (state.nextSpawnIn <= 0) {
         spawnOrder();

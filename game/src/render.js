@@ -517,26 +517,37 @@ export function createRenderer(canvas) {
     ctx.restore();
   }
 
-  function drawOrderBoard(state) {
-    for (let slot = 0; slot < RULES.maxOrders; slot += 1) {
-      if (slot < state.orders.length) continue;
-      const rect = getOrderCardRect(slot);
-      ctx.save();
-      ctx.setLineDash([6, 6]);
-      strokeRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, 'rgba(130, 102, 74, 0.34)', 1.5);
-      ctx.setLineDash([]);
-      setFont('500', 13);
-      ctx.fillStyle = 'rgba(116, 90, 66, 0.56)';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Open order slot', rect.x + rect.w / 2, rect.y + rect.h / 2);
-      ctx.restore();
+  function drawOrderBoard(state, screen) {
+    // Title screen precedes the shift: keep the tile wall & brass ticket rail completely clean behind the cover poster
+    if (screen === SCREEN.TITLE) return;
+
+    const cards = state.orders.map((order) => ({ order, served: false }));
+    const hl = state.serveHighlight;
+    if (hl && hl.orderSnapshot) {
+      const insertAt = Math.max(0, Math.min(hl.slotIndex, cards.length));
+      cards.splice(insertAt, 0, { order: hl.orderSnapshot, served: true });
+    }
+    const visibleCards = cards.slice(0, RULES.maxOrders);
+
+    if (screen === SCREEN.PLAY) {
+      for (let slot = visibleCards.length; slot < RULES.maxOrders; slot += 1) {
+        const rect = getOrderCardRect(slot);
+        ctx.save();
+        ctx.setLineDash([6, 6]);
+        strokeRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 12, 'rgba(130, 102, 74, 0.34)', 1.5);
+        ctx.setLineDash([]);
+        setFont('500', 13);
+        ctx.fillStyle = 'rgba(116, 90, 66, 0.56)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Open order slot', rect.x + rect.w / 2, rect.y + rect.h / 2);
+        ctx.restore();
+      }
     }
 
-    for (let i = 0; i < state.orders.length; i += 1) {
-      const order = state.orders[i];
-      const isHighlighted = Boolean(order.highlighted);
-      drawOrderCard(order, i, isHighlighted, isHighlighted ? 'SERVED!' : null);
+    for (let i = 0; i < visibleCards.length; i += 1) {
+      const entry = visibleCards[i];
+      drawOrderCard(entry.order, i, entry.served, entry.served ? 'SERVED!' : null);
     }
   }
 
@@ -999,7 +1010,10 @@ export function createRenderer(canvas) {
     ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
     ctx.fill();
 
-    if (state.plate.length === 0) {
+    const shownPlate =
+      state.plate.length > 0 ? state.plate : hl && hl.plateSnapshot ? hl.plateSnapshot : [];
+
+    if (shownPlate.length === 0) {
       setFont('500', 13);
       ctx.fillStyle = '#9c8f7d';
       ctx.textAlign = 'center';
@@ -1007,15 +1021,15 @@ export function createRenderer(canvas) {
       ctx.fillText('Click ingredients or', cx, cy - 8);
       ctx.fillText('burners to plate', cx, cy + 12);
     } else {
-      drawPlatedDish(ctx, state.plate, cx, cy, innerR * 0.96);
+      drawPlatedDish(ctx, shownPlate, cx, cy, innerR * 0.96);
     }
 
     // Ingredient chips cleanly seated 12px below plate and 12px above placemat bottom
     const chipY = pz.y + pz.h - 34;
-    if (state.plate.length > 0) {
+    if (shownPlate.length > 0) {
       ctx.textBaseline = 'middle';
       setFont('600', 11.5);
-      const chips = state.plate.map((it) => {
+      const chips = shownPlate.map((it) => {
         const spec = INGREDIENT_BY_ID[it.id];
         let tag = '';
         let bg = 'rgba(255, 250, 240, 0.14)';
@@ -1538,9 +1552,20 @@ export function createRenderer(canvas) {
     }
 
     // 2x2 Stats Grid (x = 376..904, aligned pixel-for-pixel with buttons below!)
+    const strikesNote =
+      state.strikes > 0
+        ? `${state.strikes} / ${RULES.maxStrikes} strikes`
+        : `0 / ${RULES.maxStrikes} strikes`;
     const stats = [
       { label: 'Coins Earned', value: `${state.coins}`, note: `Goal ${RULES.coinGoal}`, accent: '#b87b16', coin: true },
-      { label: 'Dishes Served', value: `${state.servedCount}`, note: 'Orders plated', accent: PALETTE.green, coin: false },
+      {
+        label: 'Dishes Served',
+        value: `${state.servedCount}`,
+        note: strikesNote,
+        noteColor: state.strikes > 0 ? PALETTE.crimson : PALETTE.inkMuted,
+        accent: PALETTE.green,
+        coin: false,
+      },
       { label: 'Perfect Dishes', value: `${state.perfectCount}`, note: 'Fast & golden', accent: '#2c7e57', coin: false },
       {
         label: 'Best Combo',
@@ -1572,8 +1597,8 @@ export function createRenderer(canvas) {
       ctx.fillStyle = PALETTE.inkMid;
       ctx.fillText(st.label, tx + 16, ty + 23);
 
-      setFont('500', 11.5);
-      ctx.fillStyle = PALETTE.inkMuted;
+      setFont(st.noteColor ? '600' : '500', 11.5);
+      ctx.fillStyle = st.noteColor || PALETTE.inkMuted;
       ctx.fillText(st.note, tx + 16, ty + 48);
 
       ctx.textAlign = 'right';
@@ -1607,7 +1632,7 @@ export function createRenderer(canvas) {
 
     drawKitchenBackdrop();
     drawHud(state, ui);
-    drawOrderBoard(state);
+    drawOrderBoard(state, ui.screen);
     drawHintBar(world.getHint(), isModalOpen);
     drawStoveRange(state, ui);
     drawAssemblyPlate(state, readyMatch);
