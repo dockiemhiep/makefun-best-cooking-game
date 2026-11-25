@@ -48,7 +48,7 @@ export const OVERLAY_RECTS = {
 };
 
 function formatClock(seconds) {
-  const s = Math.max(0, Math.ceil(seconds));
+  const s = Math.max(0, Math.ceil(seconds - 1e-6));
   const m = Math.floor(s / 60);
   const rem = s % 60;
   return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
@@ -512,7 +512,7 @@ export function createRenderer(canvas) {
     setFont('700', 12);
     ctx.fillStyle = lowPatience ? PALETTE.crimson : PALETTE.inkMid;
     ctx.textAlign = 'right';
-    ctx.fillText(`${Math.max(0, Math.ceil(order.patience))}s`, rect.x + rect.w - 16, barY + 5.5);
+    ctx.fillText(`${Math.max(0, Math.ceil(order.patience - 1e-6))}s`, rect.x + rect.w - 16, barY + 5.5);
 
     ctx.restore();
   }

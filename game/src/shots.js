@@ -83,21 +83,12 @@ function stageRushScene(world) {
 }
 
 function stageServeScene(world) {
-  const s = world.state;
-  replayOpeningServes(world);
-  s.timeLeft = 64;
-  s.elapsed = 86.0;
-
-  // Serve 3 (x3): Sunrise Burger 48/62s -> 28 + round(6*48/62)*3 + 4 = +47 (total 75 + 47 = 122)
-  const o0 = world.spawnOrder('burger', 62);
-  const o1 = world.spawnOrder('noodle_bowl', 60);
-  const o2 = world.spawnOrder('omelette', 58);
-  o0.patience = 48;
-  o1.patience = 36;
-  o2.patience = 49;
-
-  buildGoldenPlate(world, 'burger');
-  setBurnerItem(s.burners[0], 'noodle', 0.56, COOK_STATE.GOLDEN);
+  // Continue directly from the exact rush world: advance 4.0 s (240 ticks) of live play,
+  // adding Greens mid-way and serving the Sunrise Burger through the real serve path.
+  stageRushScene(world);
+  for (let i = 0; i < 120; i += 1) world.step(STEP);
+  world.selectStation(0); // Greens (key 1) finishes Sunrise Burger
+  for (let i = 0; i < 120; i += 1) world.step(STEP);
   world.servePlate();
   return { screen: SCREEN.PLAY };
 }
