@@ -12,7 +12,7 @@ The Golden Ladle is an original rush-kitchen cooking game that runs in a desktop
 node serve.ts
 ```
 
-Then open http://localhost:8080 - or open game/index.html directly in a desktop browser.
+Then open http://localhost:8080 in a desktop browser.
 
 ---
 <sub>Entered on [make.fun](https://make.fun/?ref=r027wqk6&utm_source=github&utm_medium=readme&utm_campaign=best-cooking-game-20261125-0137) · AI agents build software for cash rewards</sub>

@@ -1,9 +1,9 @@
 // Deterministic screenshot scene staging for ?shot=title|rush|serve|results&seed=N.
-// Never starts timers or animation loops; every pixel is reproducible from the seed.
-import { RULES } from './config.js';
-import { COOK_STATE, INGREDIENT_BY_ID } from './recipes.js';
+// Stages shots 3 and 4 directly through real world.servePlate() / world.step() paths so every
+// rendered state, payout, streak, and strike total is 100% faithful to live gameplay.
+import { RULES, STEP } from './config.js';
+import { COOK_STATE, INGREDIENT_BY_ID, RECIPE_BY_ID } from './recipes.js';
 import { SCREEN } from './render.js';
-import { OUTCOME } from './world.js';
 
 function setBurnerItem(burner, id, progress, state) {
   const spec = INGREDIENT_BY_ID[id];
@@ -19,6 +19,15 @@ function setBurnerItem(burner, id, progress, state) {
   burner.sizzleAccum = 0;
 }
 
+/** Place a complete golden dish matching `recipeId` onto `world.state.plate`. */
+function buildGoldenPlate(world, recipeId) {
+  const recipe = RECIPE_BY_ID[recipeId];
+  world.state.plate = recipe.steps.map((step) => ({
+    id: step.id,
+    state: step.cooked ? COOK_STATE.GOLDEN : COOK_STATE.READY,
+  }));
+}
+
 function stageTitleScene(world) {
   const s = world.state;
   world.reset({ empty: true, shiftNumber: 1 });
@@ -27,12 +36,8 @@ function stageTitleScene(world) {
   s.coins = 0;
   s.combo = 0;
   s.strikes = 0;
-
-  // Clean pre-shift kitchen ready to open: 3 fresh full-patience orders on the rail, clean burners & counter
-  world.spawnOrder('salad', 64);
-  world.spawnOrder('burger', 62);
-  world.spawnOrder('pancakes', 60);
-
+  // Title screen precedes the shift: zero order cards behind the poster cover
+  s.orders = [];
   return { screen: SCREEN.TITLE };
 }
 
@@ -56,14 +61,14 @@ function stageRushScene(world) {
   o1.patience = 46; // 77% (green)
   o2.patience = 24; // 41% (warm amber)
 
-  // Mid-assembly Sunrise Burger on plate: bun + golden patty + cheese
+  // Mid-assembly Sunrise Burger on plate: bun + golden patty + cheese (needs Greens to finish)
   s.plate = [
     { id: 'bun', state: COOK_STATE.READY },
     { id: 'patty', state: COOK_STATE.GOLDEN },
     { id: 'cheese', state: COOK_STATE.READY },
   ];
 
-  // Burner 1 inside the green golden zone (clearly showing remaining green runway); Burner 2 warming noodles
+  // Burner 1 inside the green golden zone (egg for Miso Noodle Bowl); Burner 2 heating noodles
   setBurnerItem(s.burners[0], 'egg', 0.62, COOK_STATE.GOLDEN);
   setBurnerItem(s.burners[1], 'noodle', 0.28, COOK_STATE.RAW);
 
@@ -75,70 +80,27 @@ function stageServeScene(world) {
   world.reset({ empty: true, shiftNumber: 1 });
   s.timeLeft = 64;
   s.elapsed = 86.0;
-  s.coins = 143;
-  s.combo = 3;
-  s.bestCombo = 3;
-  s.servedCount = 4;
-  s.perfectCount = 3;
+  s.coins = 96;
+  s.combo = 2;
+  s.bestCombo = 2;
+  s.servedCount = 3;
+  s.perfectCount = 2;
   s.strikes = 0;
 
+  // Front order at 48/62s patience -> real servePlate() computes:
+  // 28 + round(6 * 48/62) * 3 + 4 = 28 + 5 * 3 + 4 = +47 coins (total 96 + 47 = 143)
   const o0 = world.spawnOrder('burger', 62);
   const o1 = world.spawnOrder('noodle_bowl', 60);
   const o2 = world.spawnOrder('omelette', 58);
-  o0.patience = 44;
-  o0.highlighted = true;
+  o0.patience = 48;
   o1.patience = 36;
   o2.patience = 49;
 
-  // Completed Sunrise Burger matching the highlighted front order
-  s.plate = [
-    { id: 'bun', state: COOK_STATE.READY },
-    { id: 'patty', state: COOK_STATE.GOLDEN },
-    { id: 'cheese', state: COOK_STATE.READY },
-    { id: 'greens', state: COOK_STATE.READY },
-  ];
-
+  buildGoldenPlate(world, 'burger');
   setBurnerItem(s.burners[0], 'noodle', 0.56, COOK_STATE.GOLDEN);
 
-  // Unified zero-overlap celebration banner: +47 coins + Perfect · x3 Tip + inline COMBO x3 badge
-  s.serveHighlight = {
-    slotIndex: 0,
-    recipeId: 'burger',
-    recipeName: 'Sunrise Burger',
-    coinsEarned: 47,
-    basePrice: 28,
-    tip: 15,
-    perfectBonus: 4,
-    comboMult: 3,
-    combo: 3,
-    perfect: true,
-    subtext: 'Perfect · x3 Tip',
-    timer: 1.5,
-  };
-
-  // Golden/emerald celebration sparkles placed strictly outside the plate rim (outerR = 88 -> dist >= 104)
-  const burstAngles = [-0.45, -0.1, 0.35, 0.85, 2.25, 2.75, 3.2, 3.6];
-  const burstColors = ['#ffe584', '#fff6c4', '#47c77e', '#f1b943'];
-  for (let i = 0; i < burstAngles.length; i += 1) {
-    const a = burstAngles[i];
-    const dist = 108 + (i % 2) * 18;
-    s.particles.push({
-      x: 740 + Math.cos(a) * dist,
-      y: 426 + Math.sin(a) * dist * 0.72,
-      vx: 0,
-      vy: 0,
-      size: 4.5 + (i % 2) * 1.8,
-      color: burstColors[i % burstColors.length],
-      age: 0.15,
-      life: 1.0,
-    });
-  }
-
-  s.hintOverride = {
-    text: 'Served Sunrise Burger! +47 coins (x3 combo!)',
-    tone: 'good',
-    timer: 3.0,
-  };
+  // Execute the real live serve path — snapshots order card + plated burger into serveHighlight
+  world.servePlate();
 
   return { screen: SCREEN.PLAY };
 }
@@ -146,20 +108,49 @@ function stageServeScene(world) {
 function stageResultsScene(world) {
   const s = world.state;
   world.reset({ empty: true, shiftNumber: 1 });
-  s.timeLeft = 0;
-  s.elapsed = RULES.shiftSeconds;
-  s.coins = 264;
-  s.combo = 4;
-  s.bestCombo = 6;
-  s.servedCount = 9;
-  s.perfectCount = 7;
-  s.strikes = 0;
-  s.outcome = OUTCOME.WON;
 
-  world.spawnOrder('salad', 56);
-  world.spawnOrder('omelette', 52);
-  s.orders[0].patience = 31;
-  s.orders[1].patience = 42;
+  const serveOrder = (recipeId, patience, maxPatience) => {
+    s.orders = [];
+    const ord = world.spawnOrder(recipeId, maxPatience);
+    ord.patience = patience;
+    buildGoldenPlate(world, recipeId);
+    world.servePlate();
+  };
+
+  // Serves 1-3 (streak 1 -> 2 -> 3): 26 + 32 + 37 = 95 coins (2 perfect)
+  serveOrder('salad', 48, 64);     // 18 + round(5*48/64)*1 + 4 = 26
+  serveOrder('omelette', 44, 62);  // 20 + round(5*44/62)*2 + 4 = 32
+  serveOrder('burger', 28, 62);    // 28 + round(6*28/62)*3 + 0 = 37
+
+  // 2 orders expire mid-shift -> real step() adds 2 strikes and resets combo to 0
+  s.orders = [];
+  const t1 = world.spawnOrder('salad', 58);
+  const t2 = world.spawnOrder('pancakes', 58);
+  t1.patience = 0.01;
+  t2.patience = 0.01;
+  s.nextSpawnIn = 99;
+  world.step(STEP);
+
+  // Clutch recovery streak — Serves 4-9 (streak 1 -> 6 -> bestCombo 6): 32 + 30 + 31 + 47 + 40 + 33 = 213 coins (5 perfect)
+  serveOrder('pancakes', 40, 60);    // 24 + round(6*40/60)*1 + 4 = 32
+  serveOrder('noodle_bowl', 26, 58); // 24 + round(6*26/58)*2 + 0 = 30
+  serveOrder('salad', 39, 56);       // 18 + round(5*39/56)*3 + 4 = 31
+  serveOrder('burger', 42, 56);      // 28 + round(6*42/56)*3 + 4 = 47
+  serveOrder('noodle_bowl', 38, 54); // 24 + round(6*38/54)*3 + 4 = 40
+  serveOrder('omelette', 34, 52);    // 20 + round(5*34/52)*3 + 4 = 33
+  // Total: 95 + 213 = 308 coins, 9 served, 7 perfect, 2 strikes, bestCombo 6 (x3)
+
+  // End the shift cleanly through real step() so outcome becomes OUTCOME.WON at 00:00
+  s.orders = [];
+  s.serveHighlight = null;
+  s.popups = [];
+  s.particles = [];
+  s.hintOverride = null;
+  s.strikeFlash = 0;
+  s.timeLeft = 0.01;
+  s.elapsed = RULES.shiftSeconds - 0.01;
+  s.nextSpawnIn = 99;
+  world.step(STEP);
 
   return { screen: SCREEN.RESULTS };
 }
