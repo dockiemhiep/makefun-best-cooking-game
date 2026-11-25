@@ -1,134 +1,221 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between four screens: title, play, paused and game over.
-//
-// ?seed=N fixes the falling pattern. ?shot=start|play|end (with &seed=N) stages that scene
-// instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, LIVES, STEP } from './config.js';
+// Entrypoint for The Golden Ladle: wires simulation, high-DPI renderer, WebAudio synth,
+// keyboard/mouse input, pause/results/fail screens, and deterministic ?shot=... capture mode.
+import { STEP, STORAGE } from './config.js';
 import { createRandom } from './random.js';
-import { createWorld, EVENT_HIT, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { createWorld, EVT, getComboMultiplier, getStarsForCoins, OUTCOME } from './world.js';
+import { createRenderer, SCREEN } from './render.js';
+import { createInput } from './input.js';
+import { createAudio } from './audio.js';
 import { stageShot } from './shots.js';
 
-/** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
 const MAX_FRAME = 0.25;
 
 const params = new URLSearchParams(window.location.search);
-const shot = params.get('shot');
+const shotName = params.get('shot');
 const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
 const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
 
 const canvas = document.getElementById('game');
-const status = document.getElementById('status');
+const statusEl = document.getElementById('status');
+
 const world = createWorld(createRandom(seed));
 const renderer = createRenderer(canvas);
 
-function readBest() {
+function announce(message) {
+  if (statusEl) statusEl.textContent = message;
+}
+
+function readBestCoins() {
   try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
+    return Number.parseInt(window.localStorage.getItem(STORAGE.bestCoins) ?? '0', 10) || 0;
   } catch {
     return 0;
   }
 }
 
-function saveBest(value) {
+function saveBestCoins(coins) {
   try {
-    window.localStorage.setItem(BEST_KEY, String(value));
+    if (coins > readBestCoins()) {
+      window.localStorage.setItem(STORAGE.bestCoins, String(coins));
+    }
   } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
+    // Storage disabled on file:// or private mode.
   }
 }
 
-function runShot(name) {
-  const scene = stageShot(name, world);
+function runShotMode(name) {
+  const staged = stageShot(name, world);
+  const ui = {
+    screen: staged.screen,
+    hoverId: null,
+    muted: false,
+  };
   let painted = 0;
   function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
+    renderer.resize();
+    renderer.draw(world, ui);
     painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
-    else window.__shotReady = true;
+    if (painted < 2) {
+      requestAnimationFrame(paint);
+    } else {
+      window.__shotReady = true;
+    }
   }
   requestAnimationFrame(paint);
 }
 
-function runGame() {
-  const input = createInput(canvas);
-  let screen = SCREEN_TITLE;
-  let best = readBest();
+function runLiveGame() {
+  const audio = createAudio();
+  let screen = SCREEN.TITLE;
   let accumulator = 0;
-  let last = performance.now();
+  let lastNow = performance.now();
 
-  // Screen readers (and anyone watching the page's text) hear the screen changes and each hit.
-  function announce(message) {
-    status.textContent = message;
+  // Stage an inviting warm kitchen behind the title poster before the first shift begins.
+  stageShot('title', world);
+
+  function triggerSounds(events) {
+    if (!events) return;
+    if (events & EVT.SERVE) audio.serveChime(getComboMultiplier(world.state.combo));
+    if (events & EVT.COIN) audio.coinSparkle();
+    if (events & EVT.GOLDEN) audio.goldenDing();
+    if (events & EVT.SIZZLE) audio.sizzleTick();
+    if (events & EVT.TRASH) audio.trashWhoosh();
+    if (events & EVT.STRIKE) audio.strikeAlarm();
+    if (events & EVT.ERROR) audio.errorBuzz();
+    if ((events & EVT.CLICK) && !(events & (EVT.SERVE | EVT.TRASH | EVT.ERROR | EVT.SIZZLE))) {
+      audio.clickPop();
+    }
+    if (events & EVT.WON) audio.shiftEnd(true);
+    if (events & EVT.FAILED) audio.shiftEnd(false);
   }
 
-  function startGame() {
-    world.reset();
+  function startShift(shiftNumber) {
+    world.reset({ shiftNumber });
     accumulator = 0;
-    screen = SCREEN_PLAY;
-    announce(`Playing. ${LIVES} lives.`);
+    screen = SCREEN.PLAY;
+    input.clearHover();
+    audio.clickPop();
+    announce(`Shift ${shiftNumber} started. Reach 130 coins before the timer ends.`);
   }
 
-  function endGame() {
-    screen = SCREEN_OVER;
-    if (world.state.score > best) {
-      best = world.state.score;
-      saveBest(best);
-    }
-    announce(`Game over. Score ${world.state.score}. Best ${best}.`);
-  }
-
-  function handleActions() {
-    const actions = input.takeActions();
-    if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startGame();
-    else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    } else if (actions & (ACTION_PAUSE | ACTION_CONFIRM) && screen === SCREEN_PAUSED) {
-      screen = SCREEN_PLAY;
-      announce('Playing.');
+  function handleOutcome() {
+    if (world.state.outcome === OUTCOME.WON && screen === SCREEN.PLAY) {
+      screen = SCREEN.RESULTS;
+      saveBestCoins(world.state.coins);
+      const stars = getStarsForCoins(world.state.coins);
+      announce(`Shift complete! ${world.state.coins} coins earned, ${stars} stars.`);
+    } else if (world.state.outcome === OUTCOME.FAILED && screen === SCREEN.PLAY) {
+      screen = SCREEN.FAILED;
+      announce(`Shift failed. ${world.state.failReason}`);
     }
   }
 
-  function step() {
-    if (screen === SCREEN_TITLE) {
-      world.step(STEP, 0, true);
+  function handleCommand(cmd) {
+    if (cmd.type === 'mute') {
+      const muted = audio.toggleMute();
+      announce(muted ? 'Sound muted.' : 'Sound enabled.');
       return;
     }
-    const events = world.step(STEP, input.direction(), false);
-    if (events & EVENT_OVER) endGame();
-    else if (events & EVENT_HIT) announce(world.state.lives === 1 ? 'Hit. 1 life left.' : `Hit. ${world.state.lives} lives left.`);
+
+    if (cmd.type === 'start') {
+      startShift(1);
+      return;
+    }
+
+    if (cmd.type === 'next-shift') {
+      startShift(world.state.shiftNumber + 1);
+      return;
+    }
+
+    if (cmd.type === 'replay') {
+      startShift(world.state.shiftNumber);
+      return;
+    }
+
+    if (cmd.type === 'pause') {
+      if (screen === SCREEN.PLAY) {
+        screen = SCREEN.PAUSED;
+        audio.clickPop();
+        announce('Paused.');
+      } else if (screen === SCREEN.PAUSED) {
+        screen = SCREEN.PLAY;
+        lastNow = performance.now();
+        accumulator = 0;
+        audio.clickPop();
+        announce('Resumed.');
+      }
+      return;
+    }
+
+    if (cmd.type === 'resume' && screen === SCREEN.PAUSED) {
+      screen = SCREEN.PLAY;
+      lastNow = performance.now();
+      accumulator = 0;
+      audio.clickPop();
+      announce('Resumed.');
+      return;
+    }
+
+    if (screen !== SCREEN.PLAY) return;
+
+    let events = EVT.NONE;
+    if (cmd.type === 'station') {
+      events = world.selectStation(cmd.index);
+    } else if (cmd.type === 'burner') {
+      events = world.takeBurner(cmd.index);
+    } else if (cmd.type === 'serve') {
+      events = world.servePlate();
+      if (events & EVT.SERVE) {
+        announce(`Served! ${world.state.coins} coins total.`);
+      }
+    } else if (cmd.type === 'trash') {
+      events = world.trashPlate();
+    }
+    triggerSounds(events);
   }
+
+  const input = createInput(canvas, renderer, () => screen, handleCommand);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && screen === SCREEN.PLAY) {
+      screen = SCREEN.PAUSED;
+      announce('Paused.');
+    }
+  });
 
   function frame(now) {
     requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME);
-    last = now;
-    handleActions();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
-        step();
+    const dt = Math.min(MAX_FRAME, Math.max(0, (now - lastNow) / 1000));
+    lastNow = now;
+
+    if (screen === SCREEN.PLAY) {
+      accumulator += dt;
+      while (accumulator >= STEP && screen === SCREEN.PLAY) {
+        const events = world.step(STEP);
+        triggerSounds(events);
+        if (events & EVT.STRIKE) {
+          announce(`Order timed out. Strike ${world.state.strikes} of 3.`);
+        }
+        handleOutcome();
         accumulator -= STEP;
       }
     } else {
       accumulator = 0;
     }
-    renderer.draw(world.state, screen, best);
+
+    renderer.draw(world, {
+      screen,
+      hoverId: input.hoverId,
+      muted: audio.muted,
+    });
   }
 
-  // Leaving the tab pauses a running game rather than letting blocks fall unseen.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    }
-  });
-
-  announce('Block Dodger. Press Space or click to start.');
+  announce('The Golden Ladle. Click or press Space to start your shift.');
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+if (shotName) {
+  runShotMode(shotName);
+} else {
+  runLiveGame();
+}
